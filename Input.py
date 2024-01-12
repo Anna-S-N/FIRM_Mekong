@@ -16,9 +16,9 @@ MLoad = np.genfromtxt('Data/electricity{}.csv'.format(percapita), delimiter=',',
 TSPV = np.genfromtxt('Data/pv.csv', delimiter=',', skip_header=1) # TSPV(t, i), MW
 TSWind = np.genfromtxt('Data/wind.csv', delimiter=',', skip_header=1) # TSWind(t, i), MW
 
-assets = np.genfromtxt('Data/assets.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(np.float)
+assets = np.genfromtxt('Data/assets.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
 CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [assets[:, x] * pow(10, -3) for x in range(assets.shape[1])] # CHydro(j), MW to GW
-assets = np.genfromtxt('Data/constraints.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(np.float)
+assets = np.genfromtxt('Data/constraints.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
 ECoal, EGas, EOil, EHydro, EGeo, EBio, EWaste = [assets[:, x] for x in range(assets.shape[1])] # GWh
 CBaseload = (0.5 * EHydro + EGeo + EBio + EWaste) / 8760 # 24/7, GW
 CPeak = CCoal + CGas + COil + CHydro - 0.5 * EHydro / 8760 # GW

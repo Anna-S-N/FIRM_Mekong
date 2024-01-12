@@ -85,7 +85,7 @@ def LPGM(solution):
                           solution.MStorage[:, j]])
             C = np.around(C.transpose())
 
-            np.savetxt('Results/LPGM_{}{}{}.csv'.format(node, percapita, solution.Nodel[j]), C, fmt='%f', delimiter=',', header=header, comments='')
+            np.savetxt('Results/LPGM_{}_{}_{}.csv'.format(node, percapita, solution.Nodel[j]), C, fmt='%f', delimiter=',', header=header, comments='')
 
     print('Load profiles and generation mix is produced.')
 
@@ -162,7 +162,7 @@ def GGTA(solution):
                CapDCO, CapDCS, CapAC,
                LCOE, LCOEPV, LCOEWind, LCOEHydro, LCOEFossil, LCOEInter, LCOEPH, LCOEDC, LCOEAC]
 
-    np.savetxt('Results/GGTA{}{}.csv'.format(node, percapita), D, fmt='%f', delimiter=',')
+    np.savetxt('Results/GGTA_{}_{}.csv'.format(node, percapita), D, fmt='%f', delimiter=',')
     print('Energy generation, storage and transmission information is produced.')
 
     return True
