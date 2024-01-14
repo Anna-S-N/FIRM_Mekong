@@ -65,86 +65,120 @@ def LPGM(solution):
                   solution.MYSG, solution.MYTH, solution.MMTH, solution.PLPV, solution.PMPV])
     C = np.around(C.transpose())
 
-    header = 'Operational demand,' \
-             'Hydropower & other renewables,Fossil fuels,Import,Solar photovoltaics,Wind,Pumped hydro energy storage,Energy deficit,Energy spillage,PHES-Charge,' \
-             'PHES-Storage,' \
+    datentime = np.array([(dt.datetime(firstyear, 1, 1, 0, 0) + x * dt.timedelta(minutes=60 * resolution)).strftime('%a %#d %b %Y %H:%M') for x in range(intervals)])
+    C = np.insert(C.astype('str'), 0, datentime, axis=1)
+
+    header_main = 'Date & time,Operational demand,' \
+             'Hydropower & other renewables (MW),Fossil fuels (MW),Import (MW),Solar photovoltaics (MW),Wind (MW),Pumped hydro energy storage (MW),Energy deficit (MW),Energy spillage,PHES-Charge (MW),' \
+             'PHES-Storage (MWh),' \
              'AWIJ,ANIT,BNIK,BNPL,BNSG,KHTH,KHVS,CNVH,INMM,IJIK,IJIS,IJIT,IJSG,IKIC,IMIP,IMIC,LATH,LAVH,MYSG,MYTH,MMTH,PLPV,PMPV'
 
-    np.savetxt('Results/LPGM_SEAsia{}{}.csv'.format(node, percapita), C, fmt='%f', delimiter=',', header=header, comments='')
+    #Step to create the csv file for the main data
+    np.savetxt('Results/LPGM_SEAsia_{}_{}.csv'.format(node, percapita), C, fmt='%s', delimiter=',', header=header_main, comments='')
 
     if 'Super' in node:
-        header = 'Operational demand,' \
-                 'Hydropower & other renewables,Fossil fuels,Import,Solar photovoltaics,Wind,Pumped hydro energy storage,Energy deficit,Energy spillage,' \
-                 'Transmission,PHES-Charge,' \
+        header_node = 'Date & time,Operational demand,' \
+                 'Hydropower & other renewables (MW),Fossil fuels (MW),Import (MW),Solar photovoltaics (MW),Wind (MW),Pumped hydro energy storage (MW),Energy deficit (MW),Energy spillage,' \
+                 'Transmission,PHES-Charge (MW),' \
                  'PHES-Storage'
 
+#   This iterates over the nodes and creates csv files for each one
         for j in range(nodes):
-            C = np.stack([solution.MLoad[:, j],
+            C_node = np.stack([solution.MLoad[:, j],
                           solution.MHydro[:, j], solution.MFossil[:, j], solution.MInter[:, j], solution.MPV[:, j], solution.MWind[:, j],
                           solution.MDischarge[:, j], solution.MDeficit[:, j], -1 * solution.MSpillage[:, j], solution.Topology[j], -1 * solution.MCharge[:, j],
                           solution.MStorage[:, j]])
-            C = np.around(C.transpose())
+            C_node = np.around(C_node.transpose())
 
-            np.savetxt('Results/LPGM_{}_{}_{}.csv'.format(node, percapita, solution.Nodel[j]), C, fmt='%f', delimiter=',', header=header, comments='')
+            # Inserting datetime and converting to string format
+            C_node = np.insert(C_node.astype('str'), 0, datentime, axis=1)
 
-    print('Load profiles and generation mix is produced.')
+            np.savetxt('Results/LPGM_{}_{}_{}.csv'.format(node, percapita, solution.Nodel[j]), C_node, fmt='%s', delimiter=',', header=header_node, comments='')
+
+    print('Load profiles and generation mix have been produced.')
 
     return True
 
 def GGTA(solution):
-    """GW, GWh, TWh p.a. and A$/MWh information"""
-
+    """GW, GWh, TWh p.a. and US$/MWh information"""
+    
+    #Importing cost factors 
     if node in ['BN', 'SG']:
         factor = np.genfromtxt('Data/factor1.csv', dtype=None, delimiter=',', encoding=None)
     else:
         factor = np.genfromtxt('Data/factor.csv', dtype=None, delimiter=',', encoding=None)
     factor = dict(factor)
 
+    #Importing capacities [GW,GWh] from the least-cost solution
     CPV, CWind, CPHP, CPHS, CInter = (sum(solution.CPV), sum(solution.CWind), sum(solution.CPHP), solution.CPHS, sum(solution.CInter)) # GW, GWh
     CapHydro = (CHydro + CGeo + CBio + CWaste).sum() # Hydropower & other resources: GW
     CapFossil = (CCoal + CGas + COil).sum() # Fossil fuels: GW
 
+    #Importing generation energy [GWh] from the least-cost solution
     GPV, GWind, GHydro, GFossil, GInter = map(lambda x: x * pow(10, -6) * resolution / years,
                                               (solution.GPV.sum(), solution.GWind.sum(), solution.MHydro.sum(), solution.MFossil.sum(), solution.MInter.sum())) # TWh p.a.
     CFPV, CFWind = (GPV / CPV / 8.76, GWind / CWind / 8.76)
 
-    CostPV = factor['PV'] * CPV # A$b p.a.
-    CostWind = factor['Wind'] * CWind # A$b p.a.
-    CostHydro = factor['Hydro'] * GHydro # A$b p.a.
-    CostFossil = factor['Fossil'] * GFossil # A$b p.a.
-    CostPH = factor['PHP'] * CPHP + factor['PHS'] * CPHS - factor['LegPH'] # A$b p.a.
-    CostInter = factor['Inter'] * CInter # A$b p.a.
+    # Calculate the annual costs for each technology
+    CostPV = factor['PV'] * CPV # US$b p.a.
+    CostWind = factor['Wind'] * CWind # US$b p.a.
+    CostHydro = factor['Hydro'] * GHydro # US$b p.a.
+    CostFossil = factor['Fossil'] * GFossil # US$b p.a.
+    CostPH = factor['PHP'] * CPHP + factor['PHS'] * CPHS - factor['LegPH'] # US$b p.a.
+    CostInter = factor['Inter'] * CInter # US$b p.a.
 
     CostDC = np.array([factor['AWIJ'], factor['ANIT'], factor['BNIK'], factor['BNPL'], factor['BNSG'], factor['KHTH'], factor['KHVS'], factor['CNVH'], factor['INMM'], factor['IJIK'], factor['IJIS'], factor['IJIT'], factor['IJSG'], factor['IKIC'], factor['IMIP'], factor['IMIC'], factor['LATH'], factor['LAVH'], factor['MYSG'], factor['MYTH'], factor['MMTH'], factor['PLPV'], factor['PMPV']])
-    CostDC = (CostDC * solution.CDC).sum() - factor['LegINTC'] # A$b p.a.
-    CostAC = factor['ACPV'] * CPV + factor['ACWind'] * CWind # A$b p.a.
+    CostDC = (CostDC * solution.CDC).sum() - factor['LegINTC'] # US$b p.a.
+    CostAC = factor['ACPV'] * CPV + factor['ACWind'] * CWind # US$b p.a.
 
-    Energy = MLoad.sum() * pow(10, -9) * resolution / years # PWh p.a.
+    # Calculate the average annual energy demand
+    Energy = MLoad.sum() * pow(10, -9) * resolution / years # PWh p.a. (TWh?)
     Loss = np.sum(abs(solution.TDC), axis=0) * DCloss
     Loss = Loss.sum() * pow(10, -9) * resolution / years # PWh p.a.
 
+    # Calculate the levelised cost of electricity at a network level
     LCOE = (CostPV + CostWind + CostInter + CostHydro + CostFossil + CostPH + CostDC + CostAC) / (Energy - Loss)
     LCOEPV = CostPV / (Energy - Loss)
     LCOEWind = CostWind / (Energy - Loss)
-    LCOEInter = CostInter / (Energy - Loss)
+    LCOEInter = CostInter / (Energy - Loss)# Inters is the number of external interconnections
     LCOEHydro = CostHydro / (Energy - Loss)
     LCOEFossil = CostFossil / (Energy - Loss)
 
-    LCOEPH = CostPH / (Energy - Loss)
-    LCOEDC = CostDC / (Energy - Loss)
-    LCOEAC = CostAC / (Energy - Loss)
+    # Calculate the levelised cost of generation
+    LCOG = (CostPV + CostHydro + CostWind + CostFossil) * pow(10, 3) / (GPV + GHydro + GWind + GFossil)
+    LCOGP = CostPV * pow(10, 3) / GPV if GPV!=0 else 0
+    LCOGW = CostWind * pow(10, 3) / GWind if GWind!=0 else 0
+    LCOGH = CostHydro * pow(10, 3) / (GHydro) if (GHydro)!=0 else 0
+    LCOGI = CostInter * pow(10, 3) / (GInter) if (GInter)!=0 else 0
+    LCOGF = CostFossil * pow(10, 3) / (GFossil) if (GFossil)!=0 else 0
+
+    # Calculate the levelised cost of balancing
+    LCOB = LCOE - LCOG
+    LCOBPH = CostPH / (Energy - Loss)
+    LCOBT = (CostDC + CostAC) / (Energy - Loss)
+    LCOBL = LCOB - LCOBPH - LCOBT
 
     print('Levelised costs of electricity:')
     print('\u2022 LCOE:', LCOE)
-    print('\u2022 LCOE-PV:', LCOEPV, '(%s)' % CFPV)
-    print('\u2022 LCOE-Wind:', LCOEWind, '(%s)' % CFWind)
-    print('\u2022 LCOE-Import:', LCOEInter)
-    print('\u2022 LCOE-Hydro & other renewables:', LCOEHydro)
-    print('\u2022 LCOE-Fossil fuels:', LCOEFossil)
+    print('\u2022 LCOG:', LCOG)
+    print('\u2022 LCOB:', LCOB)
+    print('\u2022 LCOG-PV:', LCOGP, '(%s)' % CFPV)
+    print('\u2022 LCOG-Wind:', LCOGW, '(%s)' % CFWind)
+    print('\u2022 LCOG-Import:', LCOGI)
+    print('\u2022 LCOG-Hydro & other renewables:', LCOGH)
+    print('\u2022 LCOG-Fossil fuels:', LCOGF)
 
-    print('\u2022 LCOE-Pumped hydro:', LCOEPH)
-    print('\u2022 LCOE-HVDC:', LCOEDC)
-    print('\u2022 LCOE-HVAC:', LCOEAC)
+    print('\u2022 LCOB-Pumped hydro:', LCOBPH)
+    print('\u2022 LCOB-T:', LCOBT)
+    print('\u2022 LCOB-Spillage & loss:', LCOBL)
+
+    size = 24 + len(list(solution.CDC))
+    D = np.zeros((3, size))
+    header_GGTA = 'Annual demand (TWh),Annual Energy Losses (TWh),' \
+             'PV Capacity (GW),PV Avg Annual Gen (GWh),Wind Capacity (GW),Wind Avg Annual Gen (GWh),Hydro Capacity (GW),' \
+             'Hydro Avg Annual Gen (GWh),Fossil Capacity (GW),Fossil Generation (GWh),Inter Capacity (GW),Inter Generation (GWh),' \
+             'PHES-PowerCap (GW),PHES-EnergyCap (GWh),CapDCO,CapDCS,CapAC,' \
+             'LCOE,LCOG,LCOB,LCOG_PV,LCOG_Wind,LCOG_Hydro,LCOG_Inter,LCOGFossil,LCOBS_PHES,LCOBT,LCOB_LossesSpillage'
 
     CapDC = solution.CDC * np.array([2100, 1000, 900, 1300, 1300, 500, 200, 600, 1000, 900, 1400, 2100, 900, 600, 1000, 1000, 500, 500, 300, 1300, 700, 600, 400]) * pow(10, -3) # GW-km (1000)
     CapDCO = CapDC[[2, 5, 6, 7, 8, 10, 16, 17, 18, 19, 20]].sum() # GW-km (1000)
@@ -156,14 +190,14 @@ def GGTA(solution):
     #           + list(solution.CDC) \
     #           + [LCOE, LCOEPV, LCOEWind, LCOEInter, LCOEHydro, LCOEPH, LCOEDC, LCOEAC]
 
-    D = np.zeros((1, 26))
+    D = np.zeros((1, 28))
     D[0, :] = [Energy * pow(10, 3), Loss * pow(10, 3),
                CPV, GPV, CWind, GWind, CapHydro, GHydro, CapFossil, GFossil, CInter, GInter, CPHP, CPHS,
                CapDCO, CapDCS, CapAC,
-               LCOE, LCOEPV, LCOEWind, LCOEHydro, LCOEFossil, LCOEInter, LCOEPH, LCOEDC, LCOEAC]
+               LCOE, LCOG, LCOB, LCOGP, LCOGW, LCOGH, LCOGI, LCOGF, LCOBPH, LCOBT, LCOBL]
 
-    np.savetxt('Results/GGTA_{}_{}.csv'.format(node, percapita), D, fmt='%f', delimiter=',')
-    print('Energy generation, storage and transmission information is produced.')
+    np.savetxt('Results/GGTA_{}_{}.csv'.format(node, percapita), D, fmt='%s', delimiter=',',header=header_GGTA)
+    print('Energy generation, storage and transmission information has been produced.')
 
     return True
 
@@ -244,6 +278,6 @@ def Information(x, flexible):
     return True
 
 if __name__ == '__main__':
-    capacities = np.genfromtxt('Results/Optimisation_resultxSuper13.csv', delimiter=',')
-    flexible = np.genfromtxt('Results/Dispatch_FlexibleSuper13.csv', delimiter=',', skip_header=1)
+    capacities = np.genfromtxt('Results/Optimisation_resultx_Super1_3.csv', delimiter=',')
+    flexible = np.genfromtxt('Results/Dispatch_Flexible_Super1_3.csv', delimiter=',', skip_header=1)
     Information(capacities, flexible)
