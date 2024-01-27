@@ -17,7 +17,7 @@ parser.add_argument('-e', default=3, type=int, required=False, help='per-capita 
 parser.add_argument('-n', default='Super13', type=str, required=False, help='Super1, Super2, BN, KH, ...')
 args = parser.parse_args()
 
-percapita, node = (args.e, args.n)
+percapita, node, iterations, population = (args.e, args.n, args.i, args.p)
 
 from Input import *
 from Simulation import Reliability
@@ -68,7 +68,7 @@ if __name__=='__main__':
                                     maxiter=args.i, popsize=args.p, mutation=args.m, recombination=args.r,
                                     disp=True, polish=False, updating='deferred', workers=-1)
 
-    with open('Results/Optimisation_resultx{}{}.csv'.format(node, percapita), 'a', newline="") as csvfile:
+    with open('Results/Optimisation_resultx_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population), 'a', newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(result.x)
 

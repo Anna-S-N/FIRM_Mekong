@@ -4,7 +4,7 @@
 # Correspondence: bin.lu@anu.edu.au
 
 import numpy as np
-from Optimisation import percapita, node
+from Optimisation import percapita, node, iterations, population
 
 Nodel = np.array(['AW', 'AN', 'BN', 'KH', 'CN', 'IN', 'IJ', 'IK', 'IM', 'IP', 'IC', 'IS', 'IT', 'LA', 'MY', 'MM', 'PL', 'PM', 'PV', 'SG', 'TH', 'VH', 'VS'])
 PVl =   np.array(['BN']*1 + ['KH']*1 + ['IJ']*1 + ['IK']*1 + ['IM']*1 + ['IP']*1 + ['IC']*1 + ['IS']*1 + ['IT']*1 + ['LA']*1 + ['MY']*1 + ['MM']*1 + ['PL']*1 + ['PM']*1 + ['PV']*1 + ['SG']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)

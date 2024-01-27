@@ -74,7 +74,7 @@ def LPGM(solution):
              'AWIJ,ANIT,BNIK,BNPL,BNSG,KHTH,KHVS,CNVH,INMM,IJIK,IJIS,IJIT,IJSG,IKIC,IMIP,IMIC,LATH,LAVH,MYSG,MYTH,MMTH,PLPV,PMPV'
 
     #Step to create the csv file for the main data
-    np.savetxt('Results/LPGM_SEAsia_{}_{}.csv'.format(node, percapita), C, fmt='%s', delimiter=',', header=header_main, comments='')
+    np.savetxt('Results/LPGM_SEAsia_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population), C, fmt='%s', delimiter=',', header=header_main, comments='')
 
     if 'Super' in node:
         header_node = 'Date & time,Operational demand,' \
@@ -93,7 +93,7 @@ def LPGM(solution):
             # Inserting datetime and converting to string format
             C_node = np.insert(C_node.astype('str'), 0, datentime, axis=1)
 
-            np.savetxt('Results/LPGM_{}_{}_{}.csv'.format(node, percapita, solution.Nodel[j]), C_node, fmt='%s', delimiter=',', header=header_node, comments='')
+            np.savetxt('Results/LPGM_{}_{}_{}_{}_{}.csv'.format(node, percapita, solution.Nodel[j], iterations, population), C_node, fmt='%s', delimiter=',', header=header_node, comments='')
 
     print('Load profiles and generation mix have been produced.')
 
@@ -196,7 +196,7 @@ def GGTA(solution):
                CapDCO, CapDCS, CapAC,
                LCOE, LCOG, LCOB, LCOGP, LCOGW, LCOGH, LCOGI, LCOGF, LCOBPH, LCOBT, LCOBL]
 
-    np.savetxt('Results/GGTA_{}_{}.csv'.format(node, percapita), D, fmt='%s', delimiter=',',header=header_GGTA)
+    np.savetxt('Results/GGTA_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population), D, fmt='%s', delimiter=',',header=header_GGTA)
     print('Energy generation, storage and transmission information has been produced.')
 
     return True
