@@ -59,10 +59,9 @@ def LPGM(solution):
                   solution.MHydro.sum(axis=1), solution.MFossil.sum(axis=1), solution.MInter.sum(axis=1), solution.GPV.sum(axis=1), solution.GWind.sum(axis=1),
                   solution.Discharge, solution.Deficit, -1 * solution.Spillage, -1 * solution.Charge,
                   solution.Storage,
-                  solution.AWIJ, solution.ANIT, solution.BNIK, solution.BNPL, solution.BNSG, solution.KHTH,
-                  solution.KHVS, solution.CNVH, solution.INMM, solution.IJIK, solution.IJIS, solution.IJIT,
-                  solution.IJSG, solution.IKIC, solution.IMIP, solution.IMIC, solution.LATH, solution.LAVH,
-                  solution.MYSG, solution.MYTH, solution.MMTH, solution.PLPV, solution.PMPV])
+                  solution.KHTH,
+                  solution.KHVS,
+                  solution.LATH, solution.LAVH])#solution.AWIJ, solution.ANIT, solution.BNIK, solution.BNPL, solution.BNSG, solution.KHTH, solution.KHVS, solution.CNVH, solution.INMM, solution.IJIK, solution.IJIS, solution.IJIT, solution.IJSG, solution.IKIC, solution.IMIP, solution.IMIC, solution.LATH, solution.LAVH, solution.MYSG, solution.MYTH, solution.MMTH, solution.PLPV, solution.PMPV])
     C = np.around(C.transpose())
 
     datentime = np.array([(dt.datetime(firstyear, 1, 1, 0, 0) + x * dt.timedelta(minutes=60 * resolution)).strftime('%a %#d %b %Y %H:%M') for x in range(intervals)])
@@ -71,7 +70,7 @@ def LPGM(solution):
     header_main = 'Date & time,Operational demand,' \
              'Hydropower & other renewables (MW),Fossil fuels (MW),Import (MW),Solar photovoltaics (MW),Wind (MW),Pumped hydro energy storage (MW),Energy deficit (MW),Energy spillage,PHES-Charge (MW),' \
              'PHES-Storage (MWh),' \
-             'AWIJ,ANIT,BNIK,BNPL,BNSG,KHTH,KHVS,CNVH,INMM,IJIK,IJIS,IJIT,IJSG,IKIC,IMIP,IMIC,LATH,LAVH,MYSG,MYTH,MMTH,PLPV,PMPV'
+             'KHTH,KHVS,LATH,LAVH' #'AWIJ,ANIT,BNIK,BNPL,BNSG,KHTH,KHVS,CNVH,INMM,IJIK,IJIS,IJIT,IJSG,IKIC,IMIP,IMIC,LATH,LAVH,MYSG,MYTH,MMTH,PLPV,PMPV'
 
     #Step to create the csv file for the main data
     np.savetxt('Results/LPGM_SEAsia_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population), C, fmt='%s', delimiter=',', header=header_main, comments='')
@@ -127,7 +126,7 @@ def GGTA(solution):
     CostPH = factor['PHP'] * CPHP + factor['PHS'] * CPHS - factor['LegPH'] # US$b p.a.
     CostInter = factor['Inter'] * CInter # US$b p.a.
 
-    CostDC = np.array([factor['AWIJ'], factor['ANIT'], factor['BNIK'], factor['BNPL'], factor['BNSG'], factor['KHTH'], factor['KHVS'], factor['CNVH'], factor['INMM'], factor['IJIK'], factor['IJIS'], factor['IJIT'], factor['IJSG'], factor['IKIC'], factor['IMIP'], factor['IMIC'], factor['LATH'], factor['LAVH'], factor['MYSG'], factor['MYTH'], factor['MMTH'], factor['PLPV'], factor['PMPV']])
+    CostDC = np.array([factor['KHTH'], factor['KHVS'], factor['LATH'], factor['LAVH']])#([factor['AWIJ'], factor['ANIT'], factor['BNIK'], factor['BNPL'], factor['BNSG'], factor['KHTH'], factor['KHVS'], factor['CNVH'], factor['INMM'], factor['IJIK'], factor['IJIS'], factor['IJIT'], factor['IJSG'], factor['IKIC'], factor['IMIP'], factor['IMIC'], factor['LATH'], factor['LAVH'], factor['MYSG'], factor['MYTH'], factor['MMTH'], factor['PLPV'], factor['PMPV']])
     CostDC = (CostDC * solution.CDC).sum() - factor['LegINTC'] # US$b p.a.
     CostAC = factor['ACPV'] * CPV + factor['ACWind'] * CWind # US$b p.a.
 
@@ -180,10 +179,14 @@ def GGTA(solution):
              'PHES-PowerCap (GW),PHES-EnergyCap (GWh),CapDCO,CapDCS,CapAC,' \
              'LCOE,LCOG,LCOB,LCOG_PV,LCOG_Wind,LCOG_Hydro,LCOG_Inter,LCOGFossil,LCOBS_PHES,LCOBT,LCOB_LossesSpillage'
 
-    CapDC = solution.CDC * np.array([2100, 1000, 900, 1300, 1300, 500, 200, 600, 1000, 900, 1400, 2100, 900, 600, 1000, 1000, 500, 500, 300, 1300, 700, 600, 400]) * pow(10, -3) # GW-km (1000)
-    CapDCO = CapDC[[2, 5, 6, 7, 8, 10, 16, 17, 18, 19, 20]].sum() # GW-km (1000)
-    CapDCS = CapDC[[0, 1, 3, 4, 9, 11, 12, 13, 14, 15, 21, 22]].sum() # GW-km (1000)
+    CapDC = solution.CDC * np.array([500, 200, 500, 500]) * pow(10, -3) # GW-km (1000) 'KHTH,KHVS,LATH,LAVH'
+    CapDCO = CapDC[[0, 1, 2, 3]].sum() # GW-km (1000) Capacity of DC Overhead lines [[2, 5, 6, 7, 8, 10, 16, 17, 18, 19, 20]]
+    CapDCS = CapDC[[]].sum() # GW-km (1000) Capacity of DC Submarine lines 0, 1, 3, 4, 9, 11, 12, 13, 14, 15, 21, 22
     CapAC = (10 * CPV + 200 * CWind) * pow(10, -3) # GW-km (1000)
+
+# All:'AWIJ,ANIT,BNIK,BNPL,BNSG,KHTH,KHVS,CNVH,INMM,IJIK,IJIS,IJIT,IJSG,IKIC,IMIP,IMIC,LATH,LAVH,MYSG,MYTH,MMTH,PLPV,PMPV'
+# Overhead:  'BNIK Brunei-Kalimantan,KHTH,KHVS,CNVH,INMM India-Myanmar,IJIS Java-Suma,LATH,LAVH,MYSG,MYTH,MMTH' 11 originally
+# Submarine: 'AWIJ,ANIT,BNPL Brunei-Phil,BNSG,IJIK,IJIT,IJSG,IKIC,IMIP,IMIC,PLPV,PMPV'
 
     # D = np.zeros((1, 43))
     # D[0, :] = [Energy * pow(10, 3), Loss * pow(10, 3), CPV, GPV, CWind, GWind, CapHydro, GHydro, CInter, GInter, CPHP, CPHS] \
@@ -234,7 +237,7 @@ def Information(x, flexible):
         S.MSpillage = np.tile(S.Spillage, (nodes, 1)).transpose()
 
     S.CDC = np.amax(abs(S.TDC), axis=0) * pow(10, -3) # CDC(k), MW to GW
-    S.AWIJ, S.ANIT, S.BNIK, S.BNPL, S.BNSG, S.KHTH, S.KHVS, S.CNVH, S.INMM, S.IJIK, S.IJIS, S.IJIT, S.IJSG, S.IKIC, S.IMIP, S.IMIC, S.LATH, S.LAVH, S.MYSG, S.MYTH, S.MMTH, S.PLPV, S.PMPV = map(lambda k: S.TDC[:, k], range(S.TDC.shape[1]))
+    S.KHTH, S.KHVS, S.LATH, S.LAVH, = map(lambda k: S.TDC[:, k], range(S.TDC.shape[1]))
 
     S.MHydro = np.tile(S.CHydro - 0.5 * S.EHydro / 8760, (intervals, 1)) * pow(10, 3) # GW to MW
     S.MHydro = np.minimum(S.MHydro, S.MPeak)
@@ -245,29 +248,30 @@ def Information(x, flexible):
 
     # 'AW', 'AN', 'BN', 'KH', 'CN', 'IN', 'IJ', 'IK', 'IM', 'IP', 'IC', 'IS', 'IT', 'LA', 'MY', 'MM', 'PL', 'PM', 'PV', 'SG', 'TH', 'VH', 'VS'
     # S.AWIJ, S.ANIT, S.BNIK, S.BNPL, S.BNSG, S.KHTH, S.KHVS, S.CNVH, S.INMM, S.IJIK, S.IJIS, S.IJIT, S.IJSG, S.IKIC, S.IMIP, S.IMIC, S.LATH, S.LAVH, S.MYSG, S.MYTH, S.MMTH, S.PLPV, S.PMPV
-    S.Topology = [-1 * S.AWIJ,
-                  -1 * S.ANIT,
-                  -1 * S.BNIK - S.BNPL - S.BNSG,
-                  -1 * S.KHTH - S.KHVS,
-                  -1 * S.CNVH,
-                  -1 * S.INMM,
-                  S.AWIJ - S.IJIK - S.IJIS - S.IJIT - S.IJSG,
-                  S.BNIK + S.IJIK - S.IKIC,
-                  -1 * S.IMIP - S.IMIC,
-                  S.IMIP,
-                  S.IKIC + S.IMIC,
-                  S.IJIS,
-                  S.ANIT + S.IJIT,
-                  -1 * S.LATH - S.LAVH,
-                  -1 * S.MYSG - S.MYTH,
-                  S.INMM - S.MMTH,
-                  S.BNPL - S.PLPV,
-                  -1 * S.PMPV,
-                  S.PLPV + S.PMPV,
-                  S.BNSG + S.IJSG + S.MYSG,
-                  S.KHTH + S.LATH + S.MYTH + S.MMTH,
-                  S.CNVH + S.LAVH,
-                  S.KHVS]
+    S.Topology = [#-1 * S.AWIJ,
+                  #-1 * S.ANIT,
+                  #-1 * S.BNIK - S.BNPL - S.BNSG,
+                  -1 * S.KHTH - S.KHVS,             #KH
+                  #-1 * S.CNVH,
+                  #-1 * S.INMM,
+                  #S.AWIJ - S.IJIK - S.IJIS - S.IJIT - S.IJSG,
+                  #S.BNIK + S.IJIK - S.IKIC,
+                  #-1 * S.IMIP - S.IMIC,
+                  #S.IMIP,
+                  #S.IKIC + S.IMIC,
+                  #S.IJIS,
+                  #S.ANIT + S.IJIT,
+                  -1 * S.LATH - S.LAVH,             #LA
+                  #-1 * S.MYSG - S.MYTH,
+                  #S.INMM - S.MMTH,
+                  #S.BNPL - S.PLPV,
+                  #-1 * S.PMPV,
+                  #S.PLPV + S.PMPV,
+                  #S.BNSG + S.IJSG + S.MYSG,
+                  S.KHTH + S.LATH,# + S.MYTH + S.MMTH,   TH
+                  #S.CNVH 
+                  S.LAVH,                              #VH
+                  S.KHVS]                              #VS
 
     LPGM(S)
     GGTA(S)

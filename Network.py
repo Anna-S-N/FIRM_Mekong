@@ -40,39 +40,41 @@ def Transmission(solution, output=False):
 
     MImport = MLoad + MCharge + MSpillage - MPV - MWind - MInter - MBaseload - MPeak - MDischarge - MDeficit  # EIM(t, j), MW
 
-    AWIJ = -1 * MImport[:, np.where(Nodel == 'AW')[0][0]]
-    ANIT = -1 * MImport[:, np.where(Nodel == 'AN')[0][0]]
-    IMIP = MImport[:, np.where(Nodel == 'IP')[0][0]]
-    IJIS = MImport[:, np.where(Nodel == 'IS')[0][0]]
-    PMPV = -1 * MImport[:, np.where(Nodel == 'PM')[0][0]]
+    #AWIJ = -1 * MImport[:, np.where(Nodel == 'AW')[0][0]]
+    #ANIT = -1 * MImport[:, np.where(Nodel == 'AN')[0][0]]
+    #IMIP = MImport[:, np.where(Nodel == 'IP')[0][0]]
+    #IJIS = MImport[:, np.where(Nodel == 'IS')[0][0]]
+    #PMPV = -1 * MImport[:, np.where(Nodel == 'PM')[0][0]]
     KHVS = MImport[:, np.where(Nodel == 'VS')[0][0]]
-    CNVH = -1 * MImport[:, np.where(Nodel == 'CN')[0][0]]
-    INMM = -1 * MImport[:, np.where(Nodel == 'IN')[0][0]]
+    #CNVH = -1 * MImport[:, np.where(Nodel == 'CN')[0][0]]
+    #INMM = -1 * MImport[:, np.where(Nodel == 'IN')[0][0]]
 
-    LAVH = MImport[:, np.where(Nodel == 'VH')[0][0]] - CNVH
-    MMTH = -1 * MImport[:, np.where(Nodel == 'MM')[0][0]] + INMM
+    LAVH = MImport[:, np.where(Nodel == 'VH')[0][0]]# - CNVH
+    #MMTH = -1 * MImport[:, np.where(Nodel == 'MM')[0][0]] + INMM
     KHTH = -1 * MImport[:, np.where(Nodel == 'KH')[0][0]] - KHVS
-    PLPV = MImport[:, np.where(Nodel == 'PV')[0][0]] - PMPV
-    IJIT = MImport[:, np.where(Nodel == 'IT')[0][0]] - ANIT
-    IMIC = -1 * MImport[:, np.where(Nodel == 'IM')[0][0]] - IMIP
+    #PLPV = MImport[:, np.where(Nodel == 'PV')[0][0]] - PMPV
+    #IJIT = MImport[:, np.where(Nodel == 'IT')[0][0]] - ANIT
+    #IMIC = -1 * MImport[:, np.where(Nodel == 'IM')[0][0]] - IMIP
 
     LATH = -1 * MImport[:, np.where(Nodel == 'LA')[0][0]] - LAVH
-    BNPL = MImport[:, np.where(Nodel == 'PL')[0][0]] + PLPV
-    IKIC = MImport[:, np.where(Nodel == 'IC')[0][0]] - IMIC
+    #BNPL = MImport[:, np.where(Nodel == 'PL')[0][0]] + PLPV
+    #IKIC = MImport[:, np.where(Nodel == 'IC')[0][0]] - IMIC
 
-    MYTH = MImport[:, np.where(Nodel == 'TH')[0][0]] - MMTH - LATH - KHTH
-    MYSG = -1 * MImport[:, np.where(Nodel == 'MY')[0][0]] - MYTH
+    #MYTH = MImport[:, np.where(Nodel == 'TH')[0][0]] - MMTH - LATH - KHTH
+    #MYSG = -1 * MImport[:, np.where(Nodel == 'MY')[0][0]] - MYTH
 
-    BNSG = -1 * MImport[:, np.where(Nodel == 'BN')[0][0]] - BNPL
-    IJIK = MImport[:, np.where(Nodel == 'IK')[0][0]] + IKIC
+    #BNSG = -1 * MImport[:, np.where(Nodel == 'BN')[0][0]] - BNPL
+    #IJIK = MImport[:, np.where(Nodel == 'IK')[0][0]] + IKIC
 
-    IJSG = MImport[:, np.where(Nodel == 'SG')[0][0]] - BNSG - MYSG
-    IJSG1 = -1 * MImport[:, np.where(Nodel == 'IJ')[0][0]] - IJIS + AWIJ - IJIT - IJIK
-    assert abs(IJSG - IJSG1).max() <= 0.1, print(abs(IJSG - IJSG1).max())
+    #IJSG = MImport[:, np.where(Nodel == 'SG')[0][0]] - BNSG - MYSG
+    #IJSG1 = -1 * MImport[:, np.where(Nodel == 'IJ')[0][0]] - IJIS + AWIJ - IJIT - IJIK
+    #Check the final node
+    #KHTH1 = MImport[:, np.where(Nodel=='TH'[0][0])] + LATH + LAVH
+    #assert abs(KHTH - KHTH1).max() <= 0.1, print(abs(KHTH - KHTH1).max())#assert abs(IJSG - IJSG1).max() <= 0.1, print(abs(IJSG - IJSG1).max())
 
-    BNIK = 0 * BNSG
+    #BNIK = 0 * BNSG
 
-    TDC = np.array([AWIJ, ANIT, BNIK, BNPL, BNSG, KHTH, KHVS, CNVH, INMM, IJIK, IJIS, IJIT, IJSG, IKIC, IMIP, IMIC, LATH, LAVH, MYSG, MYTH, MMTH, PLPV, PMPV]).transpose() # TDC(t, k), MW
+    TDC = np.array([KHTH, KHVS, LATH, LAVH,]).transpose() # TDC(t, k), MW ([AWIJ, ANIT, BNIK, BNPL, BNSG, KHTH, KHVS, CNVH, INMM, IJIK, IJIS, IJIT, IJSG, IKIC, IMIP, IMIC, LATH, LAVH, MYSG, MYTH, MMTH, PLPV, PMPV]).
 
     if output:
         MStorage = np.tile(solution.Storage, (nodes, 1)).transpose() * pcfactor # SPH(t, j), MWh

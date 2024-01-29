@@ -6,9 +6,9 @@
 import numpy as np
 from Optimisation import percapita, node, iterations, population
 
-Nodel = np.array(['AW', 'AN', 'BN', 'KH', 'CN', 'IN', 'IJ', 'IK', 'IM', 'IP', 'IC', 'IS', 'IT', 'LA', 'MY', 'MM', 'PL', 'PM', 'PV', 'SG', 'TH', 'VH', 'VS'])
-PVl =   np.array(['BN']*1 + ['KH']*1 + ['IJ']*1 + ['IK']*1 + ['IM']*1 + ['IP']*1 + ['IC']*1 + ['IS']*1 + ['IT']*1 + ['LA']*1 + ['MY']*1 + ['MM']*1 + ['PL']*1 + ['PM']*1 + ['PV']*1 + ['SG']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
-Windl = np.array(['KH']*1 + ['LA']*1 + ['MM']*1 + ['PL']*1 + ['PM']*1 + ['PV']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
+Nodel = np.array(['KH', 'LA', 'TH', 'VH', 'VS']) #(['AW', 'AN', 'BN', 'KH', 'CN', 'IN', 'IJ', 'IK', 'IM', 'IP', 'IC', 'IS', 'IT', 'LA', 'MY', 'MM', 'PL', 'PM', 'PV', 'SG', 'TH', 'VH', 'VS'])
+PVl =   np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
+Windl = np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
 Interl = np.array(['AW']*1 + ['AN']*1 + ['CN']*1 + ['IN']*1) if node=='Super2' else np.array([])
 resolution = 1
 
@@ -25,7 +25,7 @@ CPeak = CCoal + CGas + COil + CHydro - 0.5 * EHydro / 8760 # GW
 
 inter = 0.05 if node=='Super2' else 0
 CDC0max, CDC1max, CDC7max, CDC8max = 4 * [inter * MLoad.sum() / MLoad.shape[0] / 1000] # 5%: AWIJ, ANIT, CHVH, INMM, MW to GW
-DCloss = np.array([2100, 1000, 900, 1300, 1300, 500, 200, 600, 1000, 900, 1400, 2100, 900, 600, 1000, 1000, 500, 500, 300, 1300, 700, 600, 400]) * 0.03 * pow(10, -3)
+DCloss = np.array([500, 200, 500, 500]) * 0.03 * pow(10, -3)#([2100, 1000, 900, 1300, 1300, 500, 200, 600, 1000, 900, 1400, 2100, 900, 600, 1000, 1000, 500, 500, 300, 1300, 700, 600, 400])
 
 if node in ['BN', 'SG']:
     efficiency = 0.9
@@ -58,8 +58,10 @@ contingency = list(0.25 * MLoad.max(axis=0) * pow(10, -3)) # MW to GW
 
 GBaseload = np.tile(CBaseload, (intervals, 1)) * pow(10, 3) # GW to MW
 
-manage = 0 # weeks
-allowance = MLoad.sum(axis=1).max() * 0.05 * manage * 168 * efficiency # MWh
+###### Network Constraints
+#manage = 0 # weeks
+#allowance = MLoad.sum(axis=1).max() * 0.05 * manage * 168 * efficiency # MWh
+allowance = min(0.00002*np.reshape(MLoad.sum(axis=1), (-1,8760)).sum(axis=-1)) # Allowable annual deficit of 0.002%, MWh
 
 class Solution:
     """A candidate solution of decision variables CPV(i), CWind(i), CPHP(j), S-CPHS(j)"""

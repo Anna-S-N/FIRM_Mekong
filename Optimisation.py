@@ -43,8 +43,8 @@ def F(x):
     CDC = np.amax(abs(TDC), axis=0) * pow(10, -3) # CDC(k), MW to GW
     PenDC = max(0, CDC[0] - CDC0max) * pow(10, 3) # GW to MW
     PenDC += max(0, CDC[1] - CDC1max) * pow(10, 3) # GW to MW
-    PenDC += max(0, CDC[7] - CDC7max) * pow(10, 3) # GW to MW
-    PenDC += max(0, CDC[8] - CDC8max) * pow(10, 3) # GW to MW
+    #PenDC += max(0, CDC[7] - CDC7max) * pow(10, 3) # GW to MW
+    #PenDC += max(0, CDC[8] - CDC8max) * pow(10, 3) # GW to MW
     # PenDC *= pow(10, 3) # GW to MW
 
     cost = factor * np.array([sum(S.CPV), sum(S.CWind), sum(S.CInter), sum(S.CPHP), S.CPHS] + list(CDC) + [sum(S.CPV), sum(S.CWind), Hydro * pow(10, -6), Fossil * pow(10, -6), -1, -1]) # $b p.a.
