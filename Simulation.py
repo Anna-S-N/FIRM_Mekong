@@ -8,8 +8,8 @@ import numpy as np
 def Reliability(solution, flexible, start=None, end=None):
     """Deficit = Simulation.Reliability(S, hydro=...)"""
 
-    Netload = (solution.MLoad.sum(axis=1) - solution.GPV.sum(axis=1) - solution.GWind.sum(axis=1) - solution.GInter.sum(axis=1) - solution.GBaseload.sum(axis=1))[start:end] \
-              - flexible # Sj-ENLoad(j, t), MW
+    Netload = (solution.MLoad.sum(axis=1) - solution.GPV.sum(axis=1) - solution.GWind.sum(axis=1) - solution.GBaseload.sum(axis=1))[start:end] \
+              - flexible # - solution.GInter.sum(axis=1)[start:end] # Sj-ENLoad(j, t), MW
 
     length = len(Netload)
     solution.flexible = flexible # MW

@@ -9,7 +9,7 @@ from Optimisation import percapita, node, iterations, population
 Nodel = np.array(['KH', 'LA', 'TH', 'VH', 'VS']) #(['AW', 'AN', 'BN', 'KH', 'CN', 'IN', 'IJ', 'IK', 'IM', 'IP', 'IC', 'IS', 'IT', 'LA', 'MY', 'MM', 'PL', 'PM', 'PV', 'SG', 'TH', 'VH', 'VS'])
 PVl =   np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
 Windl = np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
-Interl = np.array(['AW']*1 + ['AN']*1 + ['CN']*1 + ['IN']*1) if node=='Super2' else np.array([])
+#Interl = np.array(['AW']*1 + ['AN']*1 + ['CN']*1 + ['IN']*1) if node=='Super2' else np.array([])
 resolution = 1
 
 MLoad = np.genfromtxt('Data/electricity{}.csv'.format(percapita), delimiter=',', skip_header=1) # EOLoad(t, j), MW
@@ -24,7 +24,7 @@ CBaseload = (0.5 * EHydro + EGeo + EBio + EWaste) / 8760 # 24/7, GW
 CPeak = CCoal + CGas + COil + CHydro - 0.5 * EHydro / 8760 # GW
 
 inter = 0.05 if node=='Super2' else 0
-CDC0max, CDC1max, CDC7max, CDC8max = 4 * [inter * MLoad.sum() / MLoad.shape[0] / 1000] # 5%: AWIJ, ANIT, CHVH, INMM, MW to GW
+#CDC0max, CDC1max, CDC7max, CDC8max = 4 * [inter * MLoad.sum() / MLoad.shape[0] / 1000] # 5%: AWIJ, ANIT, CHVH, INMM, MW to GW
 DCloss = np.array([500, 200, 500, 500]) * 0.03 * pow(10, -3)#([2100, 1000, 900, 1300, 1300, 500, 200, 600, 1000, 900, 1400, 2100, 900, 600, 1000, 1000, 500, 500, 300, 1300, 700, 600, 400])
 
 if node in ['BN', 'SG']:
@@ -50,8 +50,8 @@ intervals, nodes = MLoad.shape
 years = int(resolution * intervals / 8760)
 pzones, wzones = (TSPV.shape[1], TSWind.shape[1])
 pidx, widx, sidx = (pzones, pzones + wzones, pzones + wzones + nodes)
-inters = len(Interl)
-iidx = sidx + 1 + inters
+#inters = len(Interl)
+#iidx = sidx + 1 + inters
 
 energy = MLoad.sum() * pow(10, -9) * resolution / years # PWh p.a.
 contingency = list(0.25 * MLoad.max(axis=0) * pow(10, -3)) # MW to GW
@@ -81,10 +81,11 @@ class Solution:
         self.CPHS = x[sidx] # S-CPHS(j), GWh
         self.efficiency = efficiency
 
-        self.CInter = x[sidx+1: iidx] if node=='Super2' else [0] # CInter(j), GW
-        self.GInter = np.tile(self.CInter, (intervals, 1)) * pow(10, 3) # GInter(j, t), GW to MW
+        #self.CInter = x[sidx+1: iidx] if node=='Super2' else [0] # CInter(j), GW
+        #self.GInter = np.tile(self.CInter, (intervals, 1)) * pow(10, 3) # GInter(j, t), GW to MW
 
-        self.Nodel, self.PVl, self.Windl, self.Interl = (Nodel, PVl, Windl, Interl)
+        self.Nodel, self.PVl, self.Windl = (Nodel, PVl, Windl)
+        #self.Interl = Interl
         self.node = node
 
         self.GBaseload, self.CPeak = (GBaseload, CPeak)

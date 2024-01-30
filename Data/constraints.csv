@@ -1,24 +1,6 @@
 Node,Code,Fraction,Coal,Gas,Oil,Hydro,Geothermal,Biomass,Waste
-# Australia-WA,AW,1,0,0,0,0,0,0,0
-# Australia-NT,AN,1,0,0,0,0,0,0,0
-# Brunei,BN,1,0,0,0,0,0,0,0
 Cambodia,KH,1,0,0,0,1852,0,14,0
-# China,CN,1,0,0,0,0,0,0,0
-# India,IN,1,0,0,0,0,0,0,0
-# Indonesia-Java,IJ,0.73,0,0,0,11058.04,7327.74,0,0
-# Indonesia-Kalimantan,IK,0.04,0,0,0,605.92,401.52,0,0
-# Indonesia-Maluku,IM,0.007,0,0,0,106.036,70.266,0,0
-# Indonesia-Papua,IP,0.006,0,0,0,90.888,60.228,0,0
-# Indonesia-Sulawesi,IC,0.04,0,0,0,605.92,401.52,0,0
-# Indonesia-Sumatera,IS,0.16,0,0,0,2423.68,1606.08,0,0
-# Indonesia-Timor,IT,0.02312,0,0,0,350.22176,232.07856,0,0
 Laos,LA,1,0,0,0,15000,0,0,0
-# Malaysia,MY,1,0,0,0,13388,0,701,0
-# Myanmar,MM,1,0,0,0,8829,0,0,0
-# Philippines-Luzon,PL,0.737,0,0,0,6733.969,7596.996,95.81,0
-# Philippines-Mindanao,PM,0.121,0,0,0,1105.577,1247.268,15.73,0
-# Philippines-Visayas,PV,0.142,0,0,0,1297.454,1463.736,18.46,0
-# Singapore,SG,1,0,0,0,0,0,0,1260
 Thailand,TH,1,0,0,0,5540,0,8223,0
 Vietnam-Hanoi,VH,0.5,0,0,0,29272,0,29.5,0
 Vietnam-HCMC,VS,0.5,0,0,0,29272,0,29.5,0

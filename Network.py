@@ -8,16 +8,19 @@ import numpy as np
 def Transmission(solution, output=False):
     """TDC = Network.Transmission(S)"""
 
-    Nodel, PVl, Windl, Interl = (solution.Nodel, solution.PVl, solution.Windl, solution.Interl)
+    #Nodel, PVl, Windl, Interl = (solution.Nodel, solution.PVl, solution.Windl, solution.Interl)
+    Nodel, PVl, Windl = (solution.Nodel, solution.PVl, solution.Windl)
     intervals, nodes = (solution.intervals, solution.nodes)
 
-    MPV, MWind, MInter = map(np.zeros, [(nodes, intervals)] * 3)
+    #MPV, MWind, MInter = map(np.zeros, [(nodes, intervals)] * 3)
+    MPV, MWind = map(np.zeros, [(nodes, intervals)] * 2)
     for i, j in enumerate(Nodel):
         MPV[i, :] = solution.GPV[:, np.where(PVl==j)[0]].sum(axis=1)
         MWind[i, :] = solution.GWind[:, np.where(Windl==j)[0]].sum(axis=1)
-        if solution.node=='Super2':
-            MInter[i, :] = solution.GInter[:, np.where(Interl==j)[0]].sum(axis=1)
-    MPV, MWind, MInter = (MPV.transpose(), MWind.transpose(), MInter.transpose()) # Sij-GPV(t, i), Sij-GWind(t, i), MW
+        #if solution.node=='Super2':
+        #    MInter[i, :] = solution.GInter[:, np.where(Interl==j)[0]].sum(axis=1)
+    #MPV, MWind, MInter = (MPV.transpose(), MWind.transpose(), MInter.transpose()) # Sij-GPV(t, i), Sij-GWind(t, i), MW
+    MPV, MWind = (MPV.transpose(), MWind.transpose()) # Sij-GPV(t, i), Sij-GWind(t, i), MW
 
     MBaseload = solution.GBaseload # MW
     CPeak = solution.CPeak # GW
@@ -38,7 +41,8 @@ def Transmission(solution, output=False):
     MDischarge = np.tile(solution.Discharge, (nodes, 1)).transpose() * pcfactor # MDischarge: DPH(j, t)
     MCharge = np.tile(solution.Charge, (nodes, 1)).transpose() * pcfactor # MCharge: CHPH(j, t)
 
-    MImport = MLoad + MCharge + MSpillage - MPV - MWind - MInter - MBaseload - MPeak - MDischarge - MDeficit  # EIM(t, j), MW
+    #MImport = MLoad + MCharge + MSpillage - MPV - MWind - MInter - MBaseload - MPeak - MDischarge - MDeficit  # EIM(t, j), MW
+    MImport = MLoad + MCharge + MSpillage - MPV - MWind - MBaseload - MPeak - MDischarge - MDeficit  # EIM(t, j), MW
 
     #AWIJ = -1 * MImport[:, np.where(Nodel == 'AW')[0][0]]
     #ANIT = -1 * MImport[:, np.where(Nodel == 'AN')[0][0]]
@@ -78,7 +82,8 @@ def Transmission(solution, output=False):
 
     if output:
         MStorage = np.tile(solution.Storage, (nodes, 1)).transpose() * pcfactor # SPH(t, j), MWh
-        solution.MPV, solution.MWind, solution.MInter, solution.MBaseload, solution.MPeak = (MPV, MWind, MInter, MBaseload, MPeak)
+        #solution.MPV, solution.MWind, solution.MInter, solution.MBaseload, solution.MPeak = (MPV, MWind, MInter, MBaseload, MPeak)
+        solution.MPV, solution.MWind, solution.MBaseload, solution.MPeak = (MPV, MWind, MBaseload, MPeak)
         solution.MDischarge, solution.MCharge, solution.MStorage = (MDischarge, MCharge, MStorage)
         solution.MDeficit, solution.MSpillage = (MDeficit, MSpillage)
 
