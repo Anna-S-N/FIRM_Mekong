@@ -6,12 +6,18 @@
 import numpy as np
 from Optimisation import percapita, node, iterations, population
 
+###### NODAL LISTS ######
 Nodel = np.array(['AW', 'AN', 'BN', 'KH', 'CN', 'IN', 'IJ', 'IK', 'IM', 'IP', 'IC', 'IS', 'IT', 'LA', 'MY', 'MM', 'PL', 'PM', 'PV', 'SG', 'TH', 'VH', 'VS'])
 PVl =   np.array(['BN']*1 + ['KH']*1 + ['IJ']*1 + ['IK']*1 + ['IM']*1 + ['IP']*1 + ['IC']*1 + ['IS']*1 + ['IT']*1 + ['LA']*1 + ['MY']*1 + ['MM']*1 + ['PL']*1 + ['PM']*1 + ['PV']*1 + ['SG']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
+pv_ub_np = np.array([10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.] + [10000.])
+phes_lb_np = np.array([0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [0.] + [1500.] + [600.] + [600.])
+phes_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.] + [100000.])
 Windl = np.array(['KH']*1 + ['LA']*1 + ['MM']*1 + ['PL']*1 + ['PM']*1 + ['PV']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
+wind_ub_np = np.array([10000.] + [10000.] + [10000.] + [10000.]+ [10000.]+ [10000.]+ [10000.]+ [10000.]+ [10000.])
 Interl = np.array(['AW']*1 + ['AN']*1 + ['CN']*1 + ['IN']*1) if node=='Super2' else np.array([])
 resolution = 1
 
+###### Data imports ######
 MLoad = np.genfromtxt('Data/electricity{}.csv'.format(percapita), delimiter=',', skip_header=1) # EOLoad(t, j), MW
 TSPV = np.genfromtxt('Data/pv.csv', delimiter=',', skip_header=1) # TSPV(t, i), MW
 TSWind = np.genfromtxt('Data/wind.csv', delimiter=',', skip_header=1) # TSWind(t, i), MW
@@ -23,10 +29,13 @@ ECoal, EGas, EOil, EHydro, EGeo, EBio, EWaste = [assets[:, x] for x in range(ass
 CBaseload = (0.5 * EHydro + EGeo + EBio + EWaste) / 8760 # 24/7, GW
 CPeak = CCoal + CGas + COil + CHydro - 0.5 * EHydro / 8760 # GW
 
+# Transmission constraints
 inter = 0.05 if node=='Super2' else 0
 CDC0max, CDC1max, CDC7max, CDC8max = 4 * [inter * MLoad.sum() / MLoad.shape[0] / 1000] # 5%: AWIJ, ANIT, CHVH, INMM, MW to GW
 DCloss = np.array([2100, 1000, 900, 1300, 1300, 500, 200, 600, 1000, 900, 1400, 2100, 900, 600, 1000, 1000, 500, 500, 300, 1300, 700, 600, 400]) * 0.03 * pow(10, -3)
 
+
+###### Storage system constraints and cost factors ######
 if node in ['BN', 'SG']:
     efficiency = 0.9
     factor = np.genfromtxt('Data/factor1.csv', delimiter=',', usecols=1)
@@ -34,8 +43,11 @@ else:
     efficiency = 0.8
     factor = np.genfromtxt('Data/factor.csv', delimiter=',', usecols=1)
 
+###### SIMULATION PERIOD ######
 firstyear, finalyear, timestep = (2010, 2019, 1)
 
+###### Scenario adjustments ######
+# Node values
 if 'Super' not in node:
     MLoad = MLoad[:, np.where(Nodel==node)[0]]
     TSPV = TSPV[:, np.where(PVl==node)[0]]
@@ -46,20 +58,34 @@ if 'Super' not in node:
     CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
     CPeak = CPeak[np.where(Nodel==node)[0]] # GW
 
+###### DECISION VARIABLE LIST INDEXES ######
 intervals, nodes = MLoad.shape
 years = int(resolution * intervals / 8760)
-pzones, wzones = (TSPV.shape[1], TSWind.shape[1])
-pidx, widx, sidx = (pzones, pzones + wzones, pzones + wzones + nodes)
+pzones, wzones = (TSPV.shape[1], TSWind.shape[1]) #Solar PV and wind sites
+pidx, widx, sidx = (pzones, pzones + wzones, pzones + wzones + nodes)  # Index of solar PV (sites), wind (sites), pumped hydro power (service areas), and battery power (service areas)
 inters = len(Interl)
 iidx = sidx + 1 + inters
 
+###### NETWORK CONSTRAINTS ######
 energy = MLoad.sum() * pow(10, -9) * resolution / years # PWh p.a.
 contingency = list(0.25 * MLoad.max(axis=0) * pow(10, -3)) # MW to GW
 
 GBaseload = np.tile(CBaseload, (intervals, 1)) * pow(10, 3) # GW to MW
 
-manage = 0 # weeks
-allowance = MLoad.sum(axis=1).max() * 0.05 * manage * 168 * efficiency # MWh
+# manage = 0 # weeks
+# allowance = MLoad.sum(axis=1).max() * 0.05 * manage * 168 * efficiency # MWh
+allowance = min(0.00002*np.reshape(MLoad.sum(axis=1), (-1, 8760)).sum(axis=-1)) # Allowable annual deficit of 0.002%, MWh
+
+###### DECISION VARIABLE UPPER AND LOWER BOUNDS ######
+pv_ub = [x for x in pv_ub_np]
+wind_ub = [x for x in wind_ub_np]
+phes_ub = [x for x in phes_ub_np]
+phes_lb = [x for x in phes_lb_np]
+#battery_ub = [1000.] * (nodes - inters) + inters * [0] if batteryScenario == True else nodes * [0]
+#phes_s_ub = [10000.]
+#battery_s_ub = [10000.] if batteryScenario == True else [0]
+#inter_ub = [500.] * inters if node == 'APG_Full' else inters * [0]
+#gas_ub = [50.] * (nodes - inters) + inters * [0] if gasScenario == True else nodes * [0]
 
 class Solution:
     """A candidate solution of decision variables CPV(i), CWind(i), CPHP(j), S-CPHS(j)"""
