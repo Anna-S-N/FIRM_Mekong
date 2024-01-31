@@ -9,7 +9,12 @@ from Optimisation import percapita, node, iterations, population
 ###### NODAL LISTS ######
 Nodel = np.array(['KH', 'LA', 'TH', 'VH', 'VS']) #(['AW', 'AN', 'BN', 'KH', 'CN', 'IN', 'IJ', 'IK', 'IM', 'IP', 'IC', 'IS', 'IT', 'LA', 'MY', 'MM', 'PL', 'PM', 'PV', 'SG', 'TH', 'VH', 'VS'])
 PVl =   np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
+pv_lb_np = np.array([1000.] + [1000.] + [1000.] + [5000.] + [5000.])
+pv_ub_np = np.array([10000.] + [10000.] + [10000.] + [10000.] + [10000.])
+phes_lb_np = np.array([0.] + [0.] + [1500.] + [600.] + [600.])
+phes_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + [10000.])
 Windl = np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
+wind_ub_np = np.array([100000.] + [13000.] + [239000.] + [155000.]+ [155000.])
 #Interl = np.array(['AW']*1 + ['AN']*1 + ['CN']*1 + ['IN']*1) if node=='Super2' else np.array([])
 resolution = 1
 
@@ -36,8 +41,11 @@ else:
     efficiency = 0.8
     factor = np.genfromtxt('Data/factor.csv', delimiter=',', usecols=1)
 
+###### Simulation Period ######
 firstyear, finalyear, timestep = (2010, 2019, 1)
 
+###### Scenario adjustments ######
+# Node Values
 if 'Super' not in node:
     MLoad = MLoad[:, np.where(Nodel==node)[0]]
     TSPV = TSPV[:, np.where(PVl==node)[0]]
@@ -48,6 +56,8 @@ if 'Super' not in node:
     CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
     CPeak = CPeak[np.where(Nodel==node)[0]] # GW
 
+
+###### DECISION VARIABLE LIST INDEXES ######
 intervals, nodes = MLoad.shape
 years = int(resolution * intervals / 8760)
 pzones, wzones = (TSPV.shape[1], TSWind.shape[1])
@@ -64,6 +74,13 @@ GBaseload = np.tile(CBaseload, (intervals, 1)) * pow(10, 3) # GW to MW
 #manage = 0 # weeks
 #allowance = MLoad.sum(axis=1).max() * 0.05 * manage * 168 * efficiency # MWh
 allowance = min(0.00002*np.reshape(MLoad.sum(axis=1), (-1,8760)).sum(axis=-1)) # Allowable annual deficit of 0.002%, MWh
+
+###### DECISION VARIABLE UPPER AND LOWER BOUNDS ######
+pv_lb = [x for x in pv_lb_np]
+pv_ub = [x for x in pv_ub_np]
+wind_ub = [x for x in wind_ub_np]
+phes_ub = [x for x in phes_ub_np]
+phes_lb = [x for x in phes_lb_np]
 
 class Solution:
     """A candidate solution of decision variables CPV(i), CWind(i), CPHP(j), S-CPHS(j)"""
