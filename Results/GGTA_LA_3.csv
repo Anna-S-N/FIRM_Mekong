@@ -1,3 +1,0 @@
-# Annual demand (TWh),Annual Energy Losses (TWh),PV Capacity (GW),PV Avg Annual Gen (GWh),Wind Capacity (GW),Wind Avg Annual Gen (GWh),Hydro Capacity (GW),Hydro Avg Annual Gen (GWh),Fossil Capacity (GW),Fossil Generation (GWh),Inter Capacity (GW),Inter Generation (GWh),PHES-PowerCap (GW),PHES-EnergyCap (GWh),CapDCO,CapDCS,CapAC,LCOE,LCOG,LCOB,LCOG_PV,LCOG_Wind,LCOG_Hydro,LCOG_Inter,LCOGFossil,LCOBS_PHES,LCOBT,LCOB_LossesSpillage
-30,0,2.872248931,4.03320999,4.106211524,14.98482282,3.109,14.7093295,1.878,0.472414022,0,0,1.064263756,10.24572277,0,0,0.849964794,47.49530999,37.88911551,9.606194481,42.37971911,22.83410996,50,0,100,2.466736025,1.835264774,5.304193682
-,,,,,,,,,0.00%,,,,,,,,,,,,,,,,,,
