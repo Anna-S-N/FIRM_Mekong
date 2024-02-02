@@ -23,7 +23,7 @@ MLoad = np.genfromtxt('Data/electricity{}.csv'.format(percapita), delimiter=',',
 TSPV = np.genfromtxt('Data/pv.csv', delimiter=',', skip_header=1) # TSPV(t, i), MW
 TSWind = np.genfromtxt('Data/wind.csv', delimiter=',', skip_header=1) # TSWind(t, i), MW
 
-Hydrol = np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
+#Hydrol = np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1) #do I need a node list? Cheng didn't have one
 
 assets = np.genfromtxt('Data/assets.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
 CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [assets[:, x] * pow(10, -3) for x in range(assets.shape[1])] # CHydro(j), MW to GW. There are the existing capacities for each tech
@@ -31,14 +31,19 @@ constraints = np.genfromtxt('Data/constraints.csv', dtype=None, delimiter=',', e
 ECoal, EGas, EOil, EHydro, EGeo, EBio, EWaste = [constraints[:, x] for x in range(constraints.shape[1])] # GWh, constraints on generation from existing capacity are imported from constraints.csv
 CBaseload = (EGeo + EBio + EWaste) / 8760 # 0.5 * EHydro +  24/7, GW, baseload capacity for a single time interval, defined according to fraction of each existing capacity technology assigned to baseload generation. Based on annual generation constraints (GWh) divided by number of intervals in each year (this accounts for the annual capacity factor of that tech)
 
-#baseload = np.ones((MLoad.shape[0], len(CHydro_RoR))) Not sure how to incorporate
-#for i in range(0,MLoad.shape[0]):
-#    for j in range(0,len(CHydro_RoR)):
-#        baseload[i,j] = min(hydroProfiles[i,j],CHydro_RoR[j]*pow(10,3)) if CHydro_Pond[j] != 0 else hydroProfiles[i,j]
+hydroProfiles = np.genfromtxt('Data/hydro.csv', delimiter = ',', skip_header = 1, encoding = None).astype(float)
+
+baseload = np.ones((MLoad.shape[0], len(CHydro))) #This makes the array of RoR values
+
+for i in range(0,MLoad.shape[0]):
+    for j in range(0,len(CHydro)):
+        baseload[i,j] = hydroProfiles[i,j]
+
+TotalBaseload = CBaseload + baseload
 
 #CPeak = CCoal + CGas + COil + CHydro - 0.5 * EHydro / 8760 # GW
 CPeak = CCoal + CGas + COil / 8760
-hydroProfile = np.genfromtxt('Data/hydro.csv', delimiter=',', skip_header=1)
+
 
 #for i in range(0,len(hydroProfiles[0])): Not sure what this does and whether it is needed
     #hydroProfiles[i,1] = 0
@@ -68,9 +73,11 @@ if 'Super' not in node:
     TSPV = TSPV[:, np.where(PVl==node)[0]]
     TSWind = TSWind[:, np.where(Windl==node)[0]]
 
-    CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [x[np.where(Nodel == node)[0]] for x in (CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste)]
-    EHydro = EHydro[np.where(Nodel==node)[0]] # GWh
-    CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
+    #CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [x[np.where(Nodel == node)[0]] for x in (CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste)]#
+    CCoal, CGas, COil, CGeo, CBio, CWaste = [x[np.where(Nodel == node)[0]] for x in (CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste)]# if I take CHydro out of this does the order get stuffed up
+    #EHydro = EHydro[np.where(Nodel==node)[0]] # GWh
+    #CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
+    TotalBaseload = TotalBaseload[np.where(Nodel==node)[0]] # GW Replacing the above because I need to combine all the types of baseload?
     CPeak = CPeak[np.where(Nodel==node)[0]] # GW
 
 
@@ -85,7 +92,7 @@ pidx, widx, sidx = (pzones, pzones + wzones, pzones + wzones + nodes) # Integers
 energy = MLoad.sum() * pow(10, -9) * resolution / years # PWh p.a.
 contingency = list(0.25 * MLoad.max(axis=0) * pow(10, -3)) # MW to GW
 
-GBaseload = np.tile(CBaseload, (intervals, 1)) * pow(10, 3) # GW to MW
+GBaseload = np.tile(TotalBaseload, (intervals, 1)) * pow(10, 3) # GW to MW
 
 ###### Network Constraints
 #manage = 0 # weeks
@@ -126,7 +133,7 @@ class Solution:
         self.node = node
 
         self.GBaseload, self.CPeak = (GBaseload, CPeak) #Will need to make a change here? 
-        self.CHydro, self.EHydro = (CHydro, EHydro) # GW, GWh I don't think this line is needed if I have defined this for every hour, will need it if I make anything flexible
+        #self.CHydro, self.EHydro = (CHydro, EHydro) # GW, GWh I don't think this line is needed if I have defined this for every hour, will need it if I make anything flexible
 
         self.allowance = allowance
 

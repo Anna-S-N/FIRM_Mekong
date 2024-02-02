@@ -31,7 +31,7 @@ def F(x):
 
     Deficit = Reliability(S, flexible=np.zeros(intervals)) # Sj-EDE(t, j), MW
     Flexible = Deficit.sum() * resolution / years / (0.5 * (1 + efficiency)) # MWh p.a.
-    Hydro = resolution * (baseload.sum()) / efficiency / years #min(0.5 * EHydro.sum() * pow(10, 3), Flexible) # GWh to MWh, MWh p.a.
+    Hydro = resolution * (hydroProfiles.sum()) / efficiency / years #min(0.5 * EHydro.sum() * pow(10, 3), Flexible) # GWh to MWh, MWh p.a.
     Fossil = Flexible# - Hydro # Fossil fuels: MWh p.a.
     #Hydro += GBaseload.sum() * resolution / years # Hydropower & other renewables: MWh p.a.
     PenHydro = 0
