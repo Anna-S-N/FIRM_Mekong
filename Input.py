@@ -9,12 +9,12 @@ from Optimisation import percapita, node, iterations, population
 ###### NODAL LISTS ######
 Nodel = np.array(['KH', 'LA', 'TH', 'VH', 'VS']) #(['AW', 'AN', 'BN', 'KH', 'CN', 'IN', 'IJ', 'IK', 'IM', 'IP', 'IC', 'IS', 'IT', 'LA', 'MY', 'MM', 'PL', 'PM', 'PV', 'SG', 'TH', 'VH', 'VS'])
 PVl =   np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
-pv_lb_np = np.array([1000.] + [1000.] + [1000.] + [5000.] + [5000.])
-pv_ub_np = np.array([10000.] + [10000.] + [10000.] + [10000.] + [10000.])
-phes_lb_np = np.array([0.] + [0.] + [1500.] + [600.] + [600.])
-phes_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + [10000.])
+#pv_lb_np = np.array([1000.] + [1000.] + [1000.] + [5000.] + [5000.])
+#pv_ub_np = np.array([10000.] + [10000.] + [10000.] + [10000.] + [10000.])
+#phes_lb_np = np.array([0.] + [0.] + [1500.] + [600.] + [600.])
+#phes_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + [10000.])
 Windl = np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
-wind_ub_np = np.array([100000.] + [13000.] + [239000.] + [155000.]+ [155000.])
+#wind_ub_np = np.array([100000.] + [13000.] + [239000.] + [155000.]+ [155000.])
 #Interl = np.array(['AW']*1 + ['AN']*1 + ['CN']*1 + ['IN']*1) if node=='Super2' else np.array([])
 resolution = 1
 
@@ -23,12 +23,29 @@ MLoad = np.genfromtxt('Data/electricity{}.csv'.format(percapita), delimiter=',',
 TSPV = np.genfromtxt('Data/pv.csv', delimiter=',', skip_header=1) # TSPV(t, i), MW
 TSWind = np.genfromtxt('Data/wind.csv', delimiter=',', skip_header=1) # TSWind(t, i), MW
 
+Hydrol = np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
+
 assets = np.genfromtxt('Data/assets.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
-CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [assets[:, x] * pow(10, -3) for x in range(assets.shape[1])] # CHydro(j), MW to GW
-assets = np.genfromtxt('Data/constraints.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
-ECoal, EGas, EOil, EHydro, EGeo, EBio, EWaste = [assets[:, x] for x in range(assets.shape[1])] # GWh
-CBaseload = (0.5 * EHydro + EGeo + EBio + EWaste) / 8760 # 24/7, GW
-CPeak = CCoal + CGas + COil + CHydro - 0.5 * EHydro / 8760 # GW
+CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [assets[:, x] * pow(10, -3) for x in range(assets.shape[1])] # CHydro(j), MW to GW. There are the existing capacities for each tech
+constraints = np.genfromtxt('Data/constraints.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
+ECoal, EGas, EOil, EHydro, EGeo, EBio, EWaste = [constraints[:, x] for x in range(constraints.shape[1])] # GWh, constraints on generation from existing capacity are imported from constraints.csv
+CBaseload = (EGeo + EBio + EWaste) / 8760 # 0.5 * EHydro +  24/7, GW, baseload capacity for a single time interval, defined according to fraction of each existing capacity technology assigned to baseload generation. Based on annual generation constraints (GWh) divided by number of intervals in each year (this accounts for the annual capacity factor of that tech)
+
+#baseload = np.ones((MLoad.shape[0], len(CHydro_RoR))) Not sure how to incorporate
+#for i in range(0,MLoad.shape[0]):
+#    for j in range(0,len(CHydro_RoR)):
+#        baseload[i,j] = min(hydroProfiles[i,j],CHydro_RoR[j]*pow(10,3)) if CHydro_Pond[j] != 0 else hydroProfiles[i,j]
+
+#CPeak = CCoal + CGas + COil + CHydro - 0.5 * EHydro / 8760 # GW
+CPeak = CCoal + CGas + COil / 8760
+hydroProfile = np.genfromtxt('Data/hydro.csv', delimiter=',', skip_header=1)
+
+#for i in range(0,len(hydroProfiles[0])): Not sure what this does and whether it is needed
+    #hydroProfiles[i,1] = 0
+
+###### CONSTRAINTS ######
+# Energy constraints
+#Hydromax = EHydro.sum() * pow(10,3) # GWh to MWh per year Will need this when I split the hydro into flex and not
 
 inter = 0.05 if node=='Super2' else 0
 #CDC0max, CDC1max, CDC7max, CDC8max = 4 * [inter * MLoad.sum() / MLoad.shape[0] / 1000] # 5%: AWIJ, ANIT, CHVH, INMM, MW to GW
@@ -58,11 +75,11 @@ if 'Super' not in node:
 
 
 ###### DECISION VARIABLE LIST INDEXES ######
-intervals, nodes = MLoad.shape
+intervals, nodes = MLoad.shape # The no. of intervals equals the no. of rows in the MLoad variable. The no. of nodes equals the no. of columns in MLoad 
 years = int(resolution * intervals / 8760)
-pzones, wzones = (TSPV.shape[1], TSWind.shape[1])
-pidx, widx, sidx = (pzones, pzones + wzones, pzones + wzones + nodes)
-#inters = len(Interl)
+pzones, wzones = (TSPV.shape[1], TSWind.shape[1]) # Number of solar and wind sites
+pidx, widx, sidx = (pzones, pzones + wzones, pzones + wzones + nodes) # Integers that define the final index of solar, wind, phes, etc. sites within the decision variable list
+#inters = len(Interl) # The number of external interconnections
 #iidx = sidx + 1 + inters
 
 energy = MLoad.sum() * pow(10, -9) * resolution / years # PWh p.a.
@@ -76,11 +93,12 @@ GBaseload = np.tile(CBaseload, (intervals, 1)) * pow(10, 3) # GW to MW
 allowance = min(0.00002*np.reshape(MLoad.sum(axis=1), (-1,8760)).sum(axis=-1)) # Allowable annual deficit of 0.002%, MWh
 
 ###### DECISION VARIABLE UPPER AND LOWER BOUNDS ######
-pv_lb = [x for x in pv_lb_np]
-pv_ub = [x for x in pv_ub_np]
-wind_ub = [x for x in wind_ub_np]
-phes_ub = [x for x in phes_ub_np]
-phes_lb = [x for x in phes_lb_np]
+#pv_lb = list(pv_lb_np)
+#pv_ub = list(pv_ub_np)
+#wind_ub = list(wind_ub_np)
+#phes_ub = list(phes_ub_np)
+#phes_lb = list(phes_lb_np)
+
 
 class Solution:
     """A candidate solution of decision variables CPV(i), CWind(i), CPHP(j), S-CPHS(j)"""
@@ -107,8 +125,8 @@ class Solution:
         #self.Interl = Interl
         self.node = node
 
-        self.GBaseload, self.CPeak = (GBaseload, CPeak)
-        self.CHydro, self.EHydro = (CHydro, EHydro) # GW, GWh
+        self.GBaseload, self.CPeak = (GBaseload, CPeak) #Will need to make a change here? 
+        self.CHydro, self.EHydro = (CHydro, EHydro) # GW, GWh I don't think this line is needed if I have defined this for every hour, will need it if I make anything flexible
 
         self.allowance = allowance
 
