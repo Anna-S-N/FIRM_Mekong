@@ -135,7 +135,7 @@ class Solution:
         self.node = node
 
         self.GBaseload, self.CPeak = (GBaseload, CPeak) #Will need to make a change here? 
-        #self.CHydro, self.EHydro = (CHydro, EHydro) # GW, GWh I don't think this line is needed if I have defined this for every hour, will need it if I make anything flexible
+        self.CHydro, self.EHydro = (CHydro, EHydro) # GW, GWh 
 
         self.allowance = allowance
 
