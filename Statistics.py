@@ -251,10 +251,11 @@ def Information(x, flexible):
     S.CDC = np.amax(abs(S.TDC), axis=0) * pow(10, -3) # CDC(k), MW to GW
     S.KHTH, S.KHVS, S.LATH, S.LAVH, = map(lambda k: S.TDC[:, k], range(S.TDC.shape[1]))
 
-    S.MHydro = np.tile(S.CHydro - 0.5 * S.EHydro / 8760, (intervals, 1)) * pow(10, 3) # GW to MW
-    S.MHydro = np.minimum(S.MHydro, S.MPeak)
-    S.MFossil = S.MPeak - S.MHydro # Fossil fuels
-    S.MHydro += S.MBaseload # Hydropower & other renewables
+    #S.MHydro = np.tile(S.CHydro - 0.5 * S.EHydro / 8760, (intervals, 1)) * pow(10, 3) # GW to MW
+    #S.MHydro = np.minimum(S.MHydro, S.MPeak)
+    S.MFossil = S.MPeak# - S.MHydro # Fossil fuels
+    #S.MHydro += S.MBaseload # Hydropower & other renewables
+    S.MHydro = np.clip(S.MHydro, None, CHydro * pow(10, 3)) # GHydro(t, j), GW to MW
 
     S.MPHS = S.CPHS * np.array(S.CPHP) * pow(10, 3) / sum(S.CPHP)  # GW to MW
 

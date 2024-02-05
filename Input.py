@@ -39,7 +39,9 @@ for i in range(0,MLoad.shape[0]):
     for j in range(0,len(CHydro)):
         baseload[i,j] = hydroProfiles[i,j]
 
-TotalBaseload = CBaseload + baseload
+baseload += CBaseload
+
+TotalBaseload = baseload
 
 #CPeak = CCoal + CGas + COil + CHydro - 0.5 * EHydro / 8760 # GW
 CPeak = CCoal + CGas + COil / 8760
@@ -77,7 +79,7 @@ if 'Super' not in node:
     CCoal, CGas, COil, CGeo, CBio, CWaste = [x[np.where(Nodel == node)[0]] for x in (CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste)]# if I take CHydro out of this does the order get stuffed up
     #EHydro = EHydro[np.where(Nodel==node)[0]] # GWh
     #CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
-    TotalBaseload = TotalBaseload[np.where(Nodel==node)[0]] # GW Replacing the above because I need to combine all the types of baseload?
+    TotalBaseload = TotalBaseload[np.where(Nodel==node)[0]] # GW Replacing the above to combine all the types of baseload
     CPeak = CPeak[np.where(Nodel==node)[0]] # GW
 
 
@@ -92,7 +94,7 @@ pidx, widx, sidx = (pzones, pzones + wzones, pzones + wzones + nodes) # Integers
 energy = MLoad.sum() * pow(10, -9) * resolution / years # PWh p.a.
 contingency = list(0.25 * MLoad.max(axis=0) * pow(10, -3)) # MW to GW
 
-GBaseload = np.tile(TotalBaseload, (intervals, 1)) * pow(10, 3) # GW to MW
+GBaseload = TotalBaseload * pow(10, 3) # GW to MW
 
 ###### Network Constraints
 #manage = 0 # weeks
