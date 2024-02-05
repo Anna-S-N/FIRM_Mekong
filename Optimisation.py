@@ -10,7 +10,7 @@ import csv
 
 parser = ArgumentParser()
 parser.add_argument('-i', default=150, type=int, required=False, help='maxiter=4000, 400')
-parser.add_argument('-p', default=10, type=int, required=False, help='popsize=2, 10')
+parser.add_argument('-p', default=8, type=int, required=False, help='popsize=2, 10')
 parser.add_argument('-m', default=0.5, type=float, required=False, help='mutation=0.5')
 parser.add_argument('-r', default=0.3, type=float, required=False, help='recombination=0.3')
 parser.add_argument('-e', default=3, type=int, required=False, help='per-capita electricity: 3, 6 and 9 MWh')
@@ -31,9 +31,9 @@ def F(x):
 
     Deficit = Reliability(S, flexible=np.zeros(intervals)) # Sj-EDE(t, j), MW
     Flexible = Deficit.sum() * resolution / years / (0.5 * (1 + efficiency)) # MWh p.a.
-    Hydro = resolution * (hydroProfiles.sum()) / efficiency / years #min(0.5 * EHydro.sum() * pow(10, 3), Flexible) # GWh to MWh, MWh p.a.
+    Hydro = resolution * GHydro.sum() / years #min(0.5 * EHydro.sum() * pow(10, 3), Flexible) # GWh to MWh, MWh p.a.
     Fossil = Flexible# - Hydro # Fossil fuels: MWh p.a.
-    Hydro += GBaseload.sum() * resolution / years # Hydropower & other renewables: MWh p.a. (required?)
+    Hydro += resolution * GBaseload.sum() / years # Hydropower & other renewables: MWh p.a.
     PenHydro = 0
 
     # Transmission capacity calculations

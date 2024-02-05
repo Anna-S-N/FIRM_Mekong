@@ -31,17 +31,7 @@ constraints = np.genfromtxt('Data/constraints.csv', dtype=None, delimiter=',', e
 ECoal, EGas, EOil, EHydro, EGeo, EBio, EWaste = [constraints[:, x] for x in range(constraints.shape[1])] # GWh, constraints on generation from existing capacity are imported from constraints.csv
 CBaseload = (EGeo + EBio + EWaste) / 8760 # 0.5 * EHydro +  24/7, GW, baseload capacity for a single time interval, defined according to fraction of each existing capacity technology assigned to baseload generation. Based on annual generation constraints (GWh) divided by number of intervals in each year (this accounts for the annual capacity factor of that tech)
 
-hydroProfiles = np.genfromtxt('Data/hydro.csv', delimiter = ',', skip_header = 1, encoding = None).astype(float)
-
-baseload = np.ones((MLoad.shape[0], len(CHydro))) #This makes the array of RoR values
-
-for i in range(0,MLoad.shape[0]):
-    for j in range(0,len(CHydro)):
-        baseload[i,j] = hydroProfiles[i,j]
-
-baseload += CBaseload
-
-TotalBaseload = baseload
+hydroProfiles = np.genfromtxt('Data/hydro.csv', delimiter = ',', skip_header = 1, encoding = None).astype(float) #This makes the array of RoR values
 
 #CPeak = CCoal + CGas + COil + CHydro - 0.5 * EHydro / 8760 # GW
 CPeak = CCoal + CGas + COil / 8760
@@ -79,7 +69,8 @@ if 'Super' not in node:
     CCoal, CGas, COil, CGeo, CBio, CWaste = [x[np.where(Nodel == node)[0]] for x in (CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste)]# if I take CHydro out of this does the order get stuffed up
     #EHydro = EHydro[np.where(Nodel==node)[0]] # GWh
     #CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
-    TotalBaseload = TotalBaseload[np.where(Nodel==node)[0]] # GW Replacing the above to combine all the types of baseload
+    hydroProfiles = hydroProfiles[np.where(Nodel==node)[0]] # GW 
+    CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
     CPeak = CPeak[np.where(Nodel==node)[0]] # GW
 
 
@@ -94,7 +85,8 @@ pidx, widx, sidx = (pzones, pzones + wzones, pzones + wzones + nodes) # Integers
 energy = MLoad.sum() * pow(10, -9) * resolution / years # PWh p.a.
 contingency = list(0.25 * MLoad.max(axis=0) * pow(10, -3)) # MW to GW
 
-GBaseload = TotalBaseload * pow(10, 3) # GW to MW
+GBaseload = np.tile(CBaseload, (intervals, 1)) * pow(10, 3) # GW to MW, excluding hydro
+GHydro = hydroProfiles
 
 ###### Network Constraints
 #manage = 0 # weeks
@@ -134,7 +126,7 @@ class Solution:
         #self.Interl = Interl
         self.node = node
 
-        self.GBaseload, self.CPeak = (GBaseload, CPeak) #Will need to make a change here? 
+        self.GHydro, self.GBaseload, self.CPeak = (GHydro, GBaseload, CPeak) #Will need to make a change here? 
         self.CHydro, self.EHydro = (CHydro, EHydro) # GW, GWh 
 
         self.allowance = allowance

@@ -236,7 +236,7 @@ def Information(x, flexible):
         S.TDC = np.zeros((intervals, len(DCloss))) # TDC(t, k), MW
 
         S.MPeak = np.tile(flexible, (nodes, 1)).transpose() # MW
-        S.MBaseload = GBaseload.copy() # MW
+        S.MBaseload = GBaseload.copy() + GHydro.copy() # MW
 
         S.MPV = S.GPV.copy()
         S.MWind = S.GWind.copy() if S.GWind.shape[1]>0 else np.zeros((intervals, 1))
@@ -255,7 +255,7 @@ def Information(x, flexible):
     #S.MHydro = np.minimum(S.MHydro, S.MPeak)
     S.MFossil = S.MPeak# - S.MHydro # Fossil fuels
     #S.MHydro += S.MBaseload # Hydropower & other renewables
-    S.MHydro = np.clip(S.MHydro, None, CHydro * pow(10, 3)) # GHydro(t, j), GW to MW
+    S.MHydro = S.MBaseload - GBaseload # GHydro(t, j), GW to MW
 
     S.MPHS = S.CPHS * np.array(S.CPHP) * pow(10, 3) / sum(S.CPHP)  # GW to MW
 
@@ -295,6 +295,6 @@ def Information(x, flexible):
     return True
 
 if __name__ == '__main__':
-    capacities = np.genfromtxt('Results/Optimisation_resultx_Super13_3_150_10.csv', delimiter=',')
+    capacities = np.genfromtxt('Results/Optimisation_resultx_Super13_3_150_8.csv', delimiter=',')
     flexible = np.genfromtxt('Results/Dispatch_Flexible_Super13_3.csv', delimiter=',', skip_header=1)
     Information(capacities, flexible)
