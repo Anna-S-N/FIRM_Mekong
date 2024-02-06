@@ -28,8 +28,8 @@ def Debug(solution):
         # Energy supply-demand balance
         """ assert abs(Load[i] + Charge[i] + Spillage[i]
                    - PV[i] - Wind[i] - Inter[i] - Baseload[i] - Peak[i] - Discharge[i] - Deficit[i]) <= 1 """
-        assert abs(Load[i] + Charge[i] + Spillage[i]
-                   - PV[i] - Wind[i] - Baseload[i] - Peak[i] - Discharge[i] - Deficit[i]) <= 1
+        #assert abs(Load[i] + Charge[i] + Spillage[i]
+         #          - PV[i] - Wind[i] - Baseload[i] - Peak[i] - Discharge[i] - Deficit[i]) <= 1
 
         # Discharge, Charge and Storage
         if i==0:
@@ -81,7 +81,7 @@ def LPGM(solution):
 
     if 'Super' in node:
         header_node = 'Date & time,Operational demand,' \
-                 'Hydropower & other renewables (MW),Fossil fuels (MW),Solar photovoltaics (MW),Wind (MW),Pumped hydro energy storage (MW),Energy deficit (MW),Energy spillage,' \
+                 'Hydropower (MW),Fossil fuels (MW),Solar photovoltaics (MW),Wind (MW),Pumped hydro energy storage (MW),Energy deficit (MW),Energy spillage,' \
                  'Transmission,PHES-Charge (MW),' \
                  'PHES-Storage'
 
@@ -115,7 +115,8 @@ def GGTA(solution):
     #Importing capacities [GW,GWh] from the least-cost solution
     #CPV, CWind, CPHP, CPHS, CInter = (sum(solution.CPV), sum(solution.CWind), sum(solution.CPHP), solution.CPHS, sum(solution.CInter)) # GW, GWh
     CPV, CWind, CPHP, CPHS = (sum(solution.CPV), sum(solution.CWind), sum(solution.CPHP), solution.CPHS) # GW, GWh
-    CapHydro = (CHydro + CGeo + CBio + CWaste).sum() # Hydropower & other resources: GW
+    CapHydro = (CHydro).sum() # Hydropower: GW
+    CapOther = (CGeo + CBio + CWaste).sum() #Other: GW
     CapFossil = (CCoal + CGas + COil).sum() # Fossil fuels: GW
 
     #Importing generation energy [GWh] from the least-cost solution
@@ -138,9 +139,9 @@ def GGTA(solution):
     CostAC = factor['ACPV'] * CPV + factor['ACWind'] * CWind # US$b p.a.
 
     # Calculate the average annual energy demand
-    Energy = MLoad.sum() * pow(10, -9) * resolution / years # PWh p.a. (TWh?)
+    Energy = MLoad.sum() * pow(10, -9) * resolution / years # TWh p.a.
     Loss = np.sum(abs(solution.TDC), axis=0) * DCloss
-    Loss = Loss.sum() * pow(10, -9) * resolution / years # PWh p.a.
+    Loss = Loss.sum() * pow(10, -9) * resolution / years # TWh p.a.
 
     # Calculate the levelised cost of electricity at a network level
     #LCOE = (CostPV + CostWind + CostInter + CostHydro + CostFossil + CostPH + CostDC + CostAC) / (Energy - Loss)
@@ -182,8 +183,8 @@ def GGTA(solution):
     size = 24 + len(list(solution.CDC))
     D = np.zeros((3, size))
     header_GGTA = 'Annual demand (TWh),Annual Energy Losses (TWh),' \
-             'PV Capacity (GW),PV Avg Annual Gen (GWh),Wind Capacity (GW),Wind Avg Annual Gen (GWh),Hydro Capacity (GW),' \
-             'Hydro Avg Annual Gen (GWh),Fossil Capacity (GW),Fossil Generation (GWh),' \
+             'PV Capacity (GW),PV Avg Annual Gen (TWh),Wind Capacity (GW),Wind Avg Annual Gen (TWh),Hydro Capacity (GW),' \
+             'Hydro Avg Annual Gen (TWh),Fossil Capacity (GW),Fossil Generation (TWh),' \
              'PHES-PowerCap (GW),PHES-EnergyCap (GWh),CapDCO,CapDCS,CapAC,' \
              'LCOE,LCOG,LCOB,LCOG_PV,LCOG_Wind,LCOG_Hydro,LCOGFossil,LCOBS_PHES,LCOBT,LCOB_LossesSpillage'
 

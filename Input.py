@@ -66,7 +66,7 @@ if 'Super' not in node:
     TSWind = TSWind[:, np.where(Windl==node)[0]]
 
     #CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [x[np.where(Nodel == node)[0]] for x in (CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste)]#
-    CCoal, CGas, COil, CGeo, CBio, CWaste = [x[np.where(Nodel == node)[0]] for x in (CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste)]# if I take CHydro out of this does the order get stuffed up
+    CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [x[np.where(Nodel == node)[0]] for x in (CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste)]
     #EHydro = EHydro[np.where(Nodel==node)[0]] # GWh
     #CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
     hydroProfiles = hydroProfiles[np.where(Nodel==node)[0]] # GW 
