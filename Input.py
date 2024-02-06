@@ -69,10 +69,9 @@ if 'Super' not in node:
     CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [x[np.where(Nodel == node)[0]] for x in (CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste)]
     #EHydro = EHydro[np.where(Nodel==node)[0]] # GWh
     #CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
-    hydroProfiles = hydroProfiles[np.where(Nodel==node)[0]] # GW 
+    hydroProfiles = hydroProfiles[:, np.where(Nodel==node)[0]] # GW 
     CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
     CPeak = CPeak[np.where(Nodel==node)[0]] # GW
-
 
 ###### DECISION VARIABLE LIST INDEXES ######
 intervals, nodes = MLoad.shape # The no. of intervals equals the no. of rows in the MLoad variable. The no. of nodes equals the no. of columns in MLoad 

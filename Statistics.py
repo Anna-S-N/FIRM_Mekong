@@ -28,8 +28,8 @@ def Debug(solution):
         # Energy supply-demand balance
         """ assert abs(Load[i] + Charge[i] + Spillage[i]
                    - PV[i] - Wind[i] - Inter[i] - Baseload[i] - Peak[i] - Discharge[i] - Deficit[i]) <= 1 """
-        #assert abs(Load[i] + Charge[i] + Spillage[i]
-         #          - PV[i] - Wind[i] - Baseload[i] - Peak[i] - Discharge[i] - Deficit[i]) <= 1
+        assert abs(Load[i] + Charge[i] + Spillage[i]
+                   - PV[i] - Wind[i] - Baseload[i] - Peak[i] - Discharge[i] - Deficit[i]) <= 1
 
         # Discharge, Charge and Storage
         if i==0:
@@ -60,7 +60,7 @@ def LPGM(solution):
 
     C = np.stack([solution.MLoad.sum(axis=1),
                   #solution.MHydro.sum(axis=1), solution.MFossil.sum(axis=1), solution.MInter.sum(axis=1), solution.GPV.sum(axis=1), solution.GWind.sum(axis=1),
-                  solution.MHydro.sum(axis=1), solution.MFossil.sum(axis=1), solution.GPV.sum(axis=1), solution.GWind.sum(axis=1),
+                  solution.MBaseload.sum(axis=1), solution.MFossil.sum(axis=1), solution.GPV.sum(axis=1), solution.GWind.sum(axis=1),
                   solution.Discharge, solution.Deficit, -1 * solution.Spillage, -1 * solution.Charge,
                   solution.Storage,
                   solution.KHTH,
@@ -88,7 +88,7 @@ def LPGM(solution):
 #   This iterates over the nodes and creates csv files for each one
         for j in range(nodes):
             C_node = np.stack([solution.MLoad[:, j],
-                          solution.MHydro[:, j], solution.MFossil[:, j], solution.MPV[:, j], solution.MWind[:, j],
+                          solution.MBaseload[:, j], solution.MFossil[:, j], solution.MPV[:, j], solution.MWind[:, j],
                           solution.MDischarge[:, j], solution.MDeficit[:, j], -1 * solution.MSpillage[:, j], solution.Topology[j], -1 * solution.MCharge[:, j],
                           solution.MStorage[:, j]])
             C_node = np.around(C_node.transpose())
@@ -296,6 +296,6 @@ def Information(x, flexible):
     return True
 
 if __name__ == '__main__':
-    capacities = np.genfromtxt('Results/Optimisation_resultx_Super13_3_150_8.csv', delimiter=',')
-    flexible = np.genfromtxt('Results/Dispatch_Flexible_Super13_3.csv', delimiter=',', skip_header=1)
+    capacities = np.genfromtxt('Results/Optimisation_resultx_TH_3_150_8.csv', delimiter=',')
+    flexible = np.genfromtxt('Results/Dispatch_Flexible_TH_3_150_8.csv', delimiter=',', skip_header=1)
     Information(capacities, flexible)
