@@ -9,8 +9,8 @@ from Optimisation import percapita, node, iterations, population
 ###### NODAL LISTS ######
 Nodel = np.array(['KH', 'LA', 'TH', 'VH', 'VS']) #(['AW', 'AN', 'BN', 'KH', 'CN', 'IN', 'IJ', 'IK', 'IM', 'IP', 'IC', 'IS', 'IT', 'LA', 'MY', 'MM', 'PL', 'PM', 'PV', 'SG', 'TH', 'VH', 'VS'])
 PVl =   np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
-#pv_lb_np = np.array([1000.] + [1000.] + [1000.] + [5000.] + [5000.])
-#pv_ub_np = np.array([10000.] + [10000.] + [10000.] + [10000.] + [10000.])
+pv_lb_np = np.array([0.5] + [0.5] + [3.] + [9.2] + [9.2])
+pv_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + [100000.])
 #phes_lb_np = np.array([0.] + [0.] + [1500.] + [600.] + [600.])
 #phes_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + [10000.])
 Windl = np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
@@ -93,8 +93,8 @@ GHydro = hydroProfiles
 allowance = min(0.00002*np.reshape(MLoad.sum(axis=1), (-1,8760)).sum(axis=-1)) # Allowable annual deficit of 0.002%, MWh
 
 ###### DECISION VARIABLE UPPER AND LOWER BOUNDS ######
-#pv_lb = list(pv_lb_np)
-#pv_ub = list(pv_ub_np)
+pv_lb = list(pv_lb_np)
+pv_ub = list(pv_ub_np)
 #wind_ub = list(wind_ub_np)
 #phes_ub = list(phes_ub_np)
 #phes_lb = list(phes_lb_np)
