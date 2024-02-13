@@ -60,7 +60,7 @@ def LPGM(solution):
 
     C = np.stack([solution.MLoad.sum(axis=1),
                   #solution.MHydro.sum(axis=1), solution.MFossil.sum(axis=1), solution.MInter.sum(axis=1), solution.GPV.sum(axis=1), solution.GWind.sum(axis=1),
-                  solution.MBaseload.sum(axis=1), solution.MFossil.sum(axis=1), solution.GPV.sum(axis=1), solution.GWind.sum(axis=1),
+                  solution.MHydro.sum(axis=1),solution.MBaseload.sum(axis=1), solution.MFossil.sum(axis=1), solution.GPV.sum(axis=1), solution.GWind.sum(axis=1),
                   solution.Discharge, solution.Deficit, -1 * solution.Spillage, -1 * solution.Charge,
                   solution.Storage,
                   solution.KHTH,
@@ -72,7 +72,7 @@ def LPGM(solution):
     C = np.insert(C.astype('str'), 0, datentime, axis=1)
 
     header_main = 'Date & time,Operational demand,' \
-             'Hydropower & other renewables (MW),Fossil fuels (MW),Solar photovoltaics (MW),Wind (MW),Pumped hydro energy storage (MW),Energy deficit (MW),Energy spillage,PHES-Charge (MW),' \
+             'Hydropower (MW),Hydropower & other renewables (MW),Fossil fuels (MW),Solar photovoltaics (MW),Wind (MW),Pumped hydro energy storage (MW),Energy deficit (MW),Energy spillage,PHES-Charge (MW),' \
              'PHES-Storage (MWh),' \
              'KHTH,KHVS,LATH,LAVH' #'AWIJ,ANIT,BNIK,BNPL,BNSG,KHTH,KHVS,CNVH,INMM,IJIK,IJIS,IJIT,IJSG,IKIC,IMIP,IMIC,LATH,LAVH,MYSG,MYTH,MMTH,PLPV,PMPV'
 
@@ -81,14 +81,14 @@ def LPGM(solution):
 
     if 'Super' in node:
         header_node = 'Date & time,Operational demand,' \
-                 'Hydropower (MW),Fossil fuels (MW),Solar photovoltaics (MW),Wind (MW),Pumped hydro energy storage (MW),Energy deficit (MW),Energy spillage,' \
+                 'Hydropower (MW),Hydropower & other renewables (MW),Fossil fuels (MW),Solar photovoltaics (MW),Wind (MW),Pumped hydro energy storage (MW),Energy deficit (MW),Energy spillage,' \
                  'Transmission,PHES-Charge (MW),' \
                  'PHES-Storage'
 
 #   This iterates over the nodes and creates csv files for each one
         for j in range(nodes):
             C_node = np.stack([solution.MLoad[:, j],
-                          solution.MBaseload[:, j], solution.MFossil[:, j], solution.MPV[:, j], solution.MWind[:, j],
+                          solution.MHydro[:, j], solution.MFossil[:, j], solution.MPV[:, j], solution.MWind[:, j],
                           solution.MDischarge[:, j], solution.MDeficit[:, j], -1 * solution.MSpillage[:, j], solution.Topology[j], -1 * solution.MCharge[:, j],
                           solution.MStorage[:, j]])
             C_node = np.around(C_node.transpose())
@@ -115,7 +115,7 @@ def GGTA(solution):
     #Importing capacities [GW,GWh] from the least-cost solution
     #CPV, CWind, CPHP, CPHS, CInter = (sum(solution.CPV), sum(solution.CWind), sum(solution.CPHP), solution.CPHS, sum(solution.CInter)) # GW, GWh
     CPV, CWind, CPHP, CPHS = (sum(solution.CPV), sum(solution.CWind), sum(solution.CPHP), solution.CPHS) # GW, GWh
-    CapHydro = (CHydro).sum() # Hydropower: GW
+    CapHydro = (CHydro + CGeo + CBio + CWaste).sum() # Hydropower & other resources: GW (changed this from just CHydro)
     CapOther = (CGeo + CBio + CWaste).sum() #Other: GW
     CapFossil = (CCoal + CGas + COil).sum() # Fossil fuels: GW
 
@@ -237,7 +237,7 @@ def Information(x, flexible):
         S.TDC = np.zeros((intervals, len(DCloss))) # TDC(t, k), MW
 
         S.MPeak = np.tile(flexible, (nodes, 1)).transpose() # MW
-        S.MBaseload = GBaseload.copy() + GHydro.copy() # MW
+        S.MBaseload = GBaseload.copy() #+ GHydro.copy() # MW
 
         S.MPV = S.GPV.copy()
         S.MWind = S.GWind.copy() if S.GWind.shape[1]>0 else np.zeros((intervals, 1))
@@ -252,11 +252,11 @@ def Information(x, flexible):
     S.CDC = np.amax(abs(S.TDC), axis=0) * pow(10, -3) # CDC(k), MW to GW
     S.KHTH, S.KHVS, S.LATH, S.LAVH, = map(lambda k: S.TDC[:, k], range(S.TDC.shape[1]))
 
-    #S.MHydro = np.tile(S.CHydro - 0.5 * S.EHydro / 8760, (intervals, 1)) * pow(10, 3) # GW to MW
-    #S.MHydro = np.minimum(S.MHydro, S.MPeak)
+    S.MHydro = np.tile(S.CHydro - 0.5 * S.EHydro / 8760, (intervals, 1)) * pow(10, 3) # GW to MW
+    S.MHydro = np.minimum(S.MHydro, S.MPeak)
     S.MFossil = S.MPeak# - S.MHydro # Fossil fuels
-    #S.MHydro += S.MBaseload # Hydropower & other renewables
-    S.MHydro = S.MBaseload - GBaseload # GHydro(t, j), GW to MW
+    S.MHydro += S.MBaseload # Hydropower & other renewables (changing this back to Bin's code)
+    #S.MHydro = S.MBaseload - GBaseload # GHydro(t, j), GW to MW
 
     S.MPHS = S.CPHS * np.array(S.CPHP) * pow(10, 3) / sum(S.CPHP)  # GW to MW
 
