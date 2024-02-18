@@ -9,7 +9,7 @@ from Optimisation import percapita, node, iterations, population
 ###### NODAL LISTS ######
 Nodel = np.array(['KH', 'LA', 'TH', 'VH', 'VS']) #(['AW', 'AN', 'BN', 'KH', 'CN', 'IN', 'IJ', 'IK', 'IM', 'IP', 'IC', 'IS', 'IT', 'LA', 'MY', 'MM', 'PL', 'PM', 'PV', 'SG', 'TH', 'VH', 'VS'])
 PVl =   np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
-pv_lb_np = np.array([0.5] + [0.5] + [3.] + [9.2] + [9.2])
+pv_lb_np = np.array([0.5] + [0.5] + [1.] + [5.] + [5.]) #Normal constraints are 3., 9.2 for TH and VH/VS, rooftop solar constraints are 1., 5. 
 pv_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + [100000.])
 #phes_lb_np = np.array([0.] + [0.] + [1500.] + [600.] + [600.])
 #phes_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + [10000.])
@@ -23,7 +23,6 @@ MLoad = np.genfromtxt('Data/electricity{}.csv'.format(percapita), delimiter=',',
 TSPV = np.genfromtxt('Data/pv.csv', delimiter=',', skip_header=1) # TSPV(t, i), MW
 TSWind = np.genfromtxt('Data/wind.csv', delimiter=',', skip_header=1) # TSWind(t, i), MW
 
-#Hydrol = np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1) #do I need a node list? Cheng didn't have one
 
 assets = np.genfromtxt('Data/assets.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
 CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [assets[:, x] * pow(10, -3) for x in range(assets.shape[1])] # CHydro(j), MW to GW. There are the existing capacities for each tech
@@ -37,12 +36,9 @@ hydroProfiles = np.genfromtxt('Data/hydro.csv', delimiter = ',', skip_header = 1
 CPeak = CCoal + CGas + COil / 8760
 
 
-#for i in range(0,len(hydroProfiles[0])): Not sure what this does and whether it is needed
-    #hydroProfiles[i,1] = 0
-
 ###### CONSTRAINTS ######
 # Energy constraints
-#Hydromax = EHydro.sum() * pow(10,3) # GWh to MWh per year Will need this when I split the hydro into flex and not
+#Hydromax = EHydro.sum() * pow(10,3) # GWh to MWh per year Not need in this version
 
 inter = 0.05 if node=='Super2' else 0
 #CDC0max, CDC1max, CDC7max, CDC8max = 4 * [inter * MLoad.sum() / MLoad.shape[0] / 1000] # 5%: AWIJ, ANIT, CHVH, INMM, MW to GW
