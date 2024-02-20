@@ -9,7 +9,7 @@ from Optimisation import percapita, node, iterations, population
 ###### NODAL LISTS ######
 Nodel = np.array(['KH', 'LA', 'TH', 'VH', 'VS']) #(['AW', 'AN', 'BN', 'KH', 'CN', 'IN', 'IJ', 'IK', 'IM', 'IP', 'IC', 'IS', 'IT', 'LA', 'MY', 'MM', 'PL', 'PM', 'PV', 'SG', 'TH', 'VH', 'VS'])
 PVl =   np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
-pv_lb_np = np.array([0.5] + [0.5] + [3.] + [9.2] + [9.2])
+pv_lb_np = np.array([0.5] + [0.5] + [1.] + [5.] + [5.])
 pv_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + [100000.])
 #phes_lb_np = np.array([0.] + [0.] + [1500.] + [600.] + [600.])
 #phes_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + [10000.])

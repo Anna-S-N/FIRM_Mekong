@@ -22,7 +22,7 @@ def Transmission(solution, output=False):
     #MPV, MWind, MInter = (MPV.transpose(), MWind.transpose(), MInter.transpose()) # Sij-GPV(t, i), Sij-GWind(t, i), MW
     MPV, MWind = (MPV.transpose(), MWind.transpose()) # Sij-GPV(t, i), Sij-GWind(t, i), MW
 
-    MBaseload = solution.GBaseload + solution.GHydro # MW
+    MBaseload = solution.GBaseload #+ solution.GHydro # MW
     CPeak = solution.CPeak # GW
     pkfactor = np.tile(CPeak, (intervals, 1)) / CPeak.sum()
     MPeak = np.tile(solution.flexible, (nodes, 1)).transpose() * pkfactor # MW
