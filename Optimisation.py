@@ -1,4 +1,4 @@
-# To optimise the configurations of energy generation, storage and transmission assets
+ # To optimise the configurations of energy generation, storage and transmission assets
 # Copyright (c) 2020 Bin Lu, The Australian National University
 # Licensed under the MIT Licence
 # Correspondence: bin.lu@anu.edu.au
