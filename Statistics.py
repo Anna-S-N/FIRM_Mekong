@@ -60,7 +60,7 @@ def LPGM(solution):
 
     C = np.stack([solution.MLoad.sum(axis=1),
                   #solution.MHydro.sum(axis=1), solution.MFossil.sum(axis=1), solution.MInter.sum(axis=1), solution.GPV.sum(axis=1), solution.GWind.sum(axis=1),
-                  solution.MHydro.sum(axis=1),solution.MBaseload.sum(axis=1), solution.MFossil.sum(axis=1), solution.GPV.sum(axis=1), solution.GWind.sum(axis=1),
+                  solution.MHydro.sum(axis=1), solution.MFossil.sum(axis=1), solution.GPV.sum(axis=1), solution.GWind.sum(axis=1),
                   solution.Discharge, solution.Deficit, -1 * solution.Spillage, -1 * solution.Charge,
                   solution.Storage,
                   solution.KHTH,
