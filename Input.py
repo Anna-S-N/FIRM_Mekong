@@ -4,7 +4,22 @@
 # Correspondence: bin.lu@anu.edu.au
 
 import numpy as np
-from Optimisation import percapita, node, iterations, population
+from argparse import ArgumentParser
+
+from numba import njit, float64, int64, boolean
+from numba.experimental import jitclass
+
+parser = ArgumentParser()
+parser.add_argument('-i', default=150, type=int, required=False, help='maxiter=4000, 400')
+parser.add_argument('-p', default=8, type=int, required=False, help='popsize=2, 10')
+parser.add_argument('-m', default=0.5, type=float, required=False, help='mutation=0.5')
+parser.add_argument('-r', default=0.3, type=float, required=False, help='recombination=0.3')
+parser.add_argument('-e', default=3, type=int, required=False, help='per-capita electricity: 3, 6 and 9 MWh')
+parser.add_argument('-n', default='Super13', type=str, required=False, help='Super1, Super2, BN, KH, ...')
+args = parser.parse_args()
+
+percapita, node, iterations, population = (args.e, args.n, args.i, args.p)
+
 
 ###### NODAL LISTS ######
 Nodel = np.array(['KH', 'LA', 'TH', 'VH', 'VS']) #(['AW', 'AN', 'BN', 'KH', 'CN', 'IN', 'IJ', 'IK', 'IM', 'IP', 'IC', 'IS', 'IT', 'LA', 'MY', 'MM', 'PL', 'PM', 'PV', 'SG', 'TH', 'VH', 'VS'])
@@ -17,6 +32,10 @@ Windl = np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
 #wind_ub_np = np.array([100000.] + [13000.] + [239000.] + [155000.]+ [155000.])
 #Interl = np.array(['AW']*1 + ['AN']*1 + ['CN']*1 + ['IN']*1) if node=='Super2' else np.array([])
 resolution = 1
+
+n_node = dict((name, i) for i, name in enumerate(Nodel))
+Nodel_int, PVl_int, Windl_int = (np.array([n_node[node] for node in x], dtype=np.int64) for x in (Nodel, PVl, Windl))
+
 
 ###### DATA Imports ######
 MLoad = np.genfromtxt('Data/electricity{}.csv'.format(percapita), delimiter=',', skip_header=1) # EOLoad(t, j), MW
@@ -69,11 +88,130 @@ if 'Super' not in node:
     CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
     CPeak = CPeak[np.where(Nodel==node)[0]] # GW
 
+###### Transmission Network ######
+if 'Super' in node: 
+    #Full network of all node connections
+    network = np.array([[0, 3], #KH-TH
+                        [0, 4], #KH-VS
+                        [1, 2], #LA-TH
+                        [1, 3], #LA-VH
+                        ], dtype=np.int64)
+    
+    # Find and select connections between nodes being considered
+    network_mask = np.array([(network==j).sum(axis=1).astype(np.bool_) for j in Nodel_int]).sum(axis=0)==2
+    network = network[network_mask,:]
+    networkdict = {v:k for k, v in enumerate(Nodel_int)}
+    #translate into indicies rather than Nodel_int values
+    network = np.array([networkdict[n] for n in network.flatten()], np.int64).reshape(network.shape)
+    
+    def network_neighbours(n):
+        isn_mask = np.isin(network, n)
+        hasn_mask = isn_mask.sum(axis=1).astype(bool)
+        joins_n = network[hasn_mask][~isn_mask[hasn_mask]]
+        return joins_n
+    
+    def nthary_network(network_1):
+        """primary, secondary, tertiary, ..., nthary"""
+        """supply n-1thary to generate nthary etc."""
+        networkn = -1*np.ones((1,network_1.shape[1]+1), dtype=np.int64)
+        for row in network_1:
+            _networkn = -1*np.ones((1,network_1.shape[1]+1), dtype=np.int64)
+            joins_start = network_neighbours(row[0])
+            joins_end = network_neighbours(row[-1])
+            for n in joins_start:
+                if n not in row:
+                    _networkn = np.vstack((_networkn, np.insert(row, 0, n)))
+            for n in joins_end:
+                if n not in row:
+                    _networkn = np.vstack((_networkn, np.append(row, n)))
+            _networkn=_networkn[1:,:]
+            dup=[]
+            # find rows which are already in network
+            for i, r in enumerate(_networkn): 
+                for s in networkn:
+                    if np.setdiff1d(r, s).size==0:
+                        dup.append(i)
+            # find duplicated rows within n3
+            for i, r in enumerate(_networkn):
+                for j, s in enumerate(_networkn):
+                    if i==j:
+                        continue
+                    if np.setdiff1d(r, s).size==0:
+                        dup.append(i)
+            _networkn = np.delete(_networkn, np.unique(np.array(dup, dtype=np.int64)), axis=0)
+            if _networkn.size>0:
+                networkn = np.vstack((networkn, _networkn))
+        networkn = networkn[1:,:]
+        return networkn
+    
+    #This version of FIRM maxes out at quarternary transmission
+    networks = [network]
+    while True:
+        n = nthary_network(networks[-1])
+        if n.size > 0:
+            networks.append(n)
+        else: 
+            break
+
+    def count_lines(network):
+        unique, counts = np.unique(network[:, np.array([0,-1])], return_counts=True)
+        if counts.size > 0:
+            return counts.max()
+        return 0
+    maxconnections = max([count_lines(network) for network in networks])
+
+    perfect = np.array([0,1,3,6,10,15,21]) #that's more than enough for now
+
+    directconns = -1*np.ones((len(Nodel)+1, len(Nodel)+1), np.int64)
+    for n, row in enumerate(networks[0]):
+        directconns[*row] = n
+        directconns[*row[::-1]] = n
+    
+    network = -1*np.ones((len(Nodel), perfect[len(networks)], maxconnections, 2), dtype=np.int64)
+    for i, net in enumerate(networks):
+        conns = np.zeros(len(Nodel), int)
+        for j, row in enumerate(net):
+            network[row[0], perfect[i]:perfect[i+1], conns[row[0]], 0] = row[1:]
+            network[row[-1], perfect[i]:perfect[i+1], conns[row[-1]], 0] = row[:-1][::-1]
+            conns[row[0]]+=1
+            conns[row[-1]]+=1
+            
+    for i in range(network.shape[0]):
+        for j in range(network.shape[1]):
+            for k in range(network.shape[2]):
+                if j in perfect:
+                    start=i
+                else: 
+                    start=network[i, j-1, k, 0]
+                network[i, j, k, 1] = directconns[start, network[i, j, k, 0]]
+
+    directconns=directconns[:-1, :-1]
+    
+    # =============================================================================
+    # network is a 4d array representing network connections 
+    # first index corresponds to a node and the values held in the matrix 
+    # correspond to connections. 
+    # The length of the second index is always a perfect number (1+2+3+...+n)
+    #   0:1 specify primary (direct) connections
+    #   1:3 specify secondary connections - i.e. connected to [2] via [1]
+    #   3:6 specify tertiary connections - i.e. connected to [5] via [4] via [3]
+    #   etc. 
+    # With lastindex=0, the values are the nodes connected to 
+    # With lastindex=1, the values are the lines used by the connection
+    #
+    # The third index is used for multiple connections
+    # 
+    # The network variable uses -1 for empty values 
+    # =============================================================================
+
 ###### DECISION VARIABLE LIST INDEXES ######
 intervals, nodes = MLoad.shape # The no. of intervals equals the no. of rows in the MLoad variable. The no. of nodes equals the no. of columns in MLoad 
 years = int(resolution * intervals / 8760)
 pzones, wzones = (TSPV.shape[1], TSWind.shape[1]) # Number of solar and wind sites
-pidx, widx, sidx = (pzones, pzones + wzones, pzones + wzones + nodes) # Integers that define the final index of solar, wind, phes, etc. sites within the decision variable list
+pidx, widx = (pzones, pzones + wzones) # Integers that define the final index of solar, wind, phes, etc. sites within the decision variable list
+spidx, seidx = pzones + wzones + nodes, pzones + wzones + nodes + nodes
+
+
 #inters = len(Interl) # The number of external interconnections
 #iidx = sidx + 1 + inters
 
@@ -96,36 +234,169 @@ pv_ub = list(pv_ub_np)
 #phes_lb = list(phes_lb_np)
 
 
+CDCmax = 100.*np.ones_like(DCloss)
+
+#lb = pv_lb + [0.]    * wzones + phes_lb + contingency + [0.] # 
+#lb = [0.]     * pzones + [0.]    * wzones + contingency      + [0.]      #+ [0.]    * inters (previous lb)
+lb = np.array(pv_lb + [0.]    * wzones + contingency      + [0.] * nodes     + [0.] * network_mask.sum())
+#ub = pv_ub + wind_ub + phes_ub + [10000.] * nodes + [100000.] #
+#ub = [10000.] * pzones + [300.]  * wzones + [10000.] * nodes + [100000.] #+ [1000.] * inters
+ub = np.array(pv_ub + [300.]  * wzones + [10000.] * nodes + [50000.] * nodes + list(CDCmax[network_mask]))
+
+#%%
+from Simulation import Reliability
+
+@njit()
+def F(S):
+    Deficit = Reliability(S, flexible=np.zeros((intervals, nodes) , dtype=np.float64)) # Sj-EDE(t, j), MW
+    Flexible = Deficit.sum() * resolution / years / (0.5 * (1 + efficiency)) # MWh p.a.
+    Hydro = resolution * GHydro.sum() / years #min(0.5 * EHydro.sum() * pow(10, 3), Flexible) # GWh to MWh, MWh p.a.
+    Fossil = Flexible# - Hydro # Fossil fuels: MWh p.a.
+    Hydro += resolution * GBaseload.sum() / years # Hydropower & other renewables: MWh p.a.
+    PenHydro = 0
+
+    Deficit = Reliability(S, flexible=np.ones((intervals, nodes), dtype=np.float64)*CPeak*1000) # Sj-EDE(t, j), GW to MW
+    PenDeficit = np.maximum(0, Deficit.sum() * resolution) # MWh
+
+    CHVDC = np.zeros(len(network_mask), dtype=np.float64)
+    CHVDC[network_mask] = S.CHVDC
+
+    _c = -1.0 if 'super' not in node else -1.0
+    cost = (factor * np.array([S.CPV.sum(), S.CWind.sum(), 0, S.CPHP.sum(), S.CPHS.sum()] + list(CHVDC) +
+                               [S.CPV.sum(), S.CWind.sum(), Hydro * 0.000_001, Fossil*0.000_001, _c, _c])
+            ).sum()
+
+    loss = np.zeros(len(network_mask), dtype=np.float64)
+    loss[network_mask] = S.TDC.sum(axis=0) * DCloss[network_mask]
+    loss = loss.sum() * 0.000000001 * resolution / years # PWh p.a.
+    LCOE = cost / np.abs(energy - loss)
+    
+    return LCOE, (PenHydro+PenDeficit)
+
+solution_spec = [
+    ('x', float64[:]),  # x is 1d array
+    ('MLoad', float64[:, :]),  # 2D array of floats
+    ('intervals', int64),
+    ('nodes', int64),
+    ('resolution',float64),
+    ('allowance',float64),
+    ('CPV', float64[:]), # 1D array of floats
+    ('CWind', float64[:]), # 1D array of floats
+    ('GPV', float64[:, :]),  # 2D array of floats
+    ('GWind', float64[:, :]),  # 2D array of floats
+    ('CPHP', float64[:]),
+    ('CPHS', float64[:]),
+    ('efficiency', float64),
+    ('Nodel_int', int64[:]), 
+    ('PVl_int', int64[:]),
+    ('Windl_int', int64[:]),
+    ('GBaseload', float64[:, :]),  # 2D array of floats
+    ('GHydro', float64[:, :]),  # 2D array of floats
+    ('CPeak', float64[:]),  # 1D array of floats
+    ('CHydro', float64[:]),  # 1D array of floats
+    ('EHydro', float64[:]),  # 1D array of floats
+    ('flexible', float64[:,:]),
+    ('Discharge', float64[:,:]),
+    ('Charge', float64[:,:]),
+    ('Storage', float64[:,:]),
+    ('Deficit', float64[:,:]),
+    ('Spillage', float64[:,:]),
+    ('Netload' ,float64[:,:]),
+    ('Penalties', float64),
+    ('Lcoe', float64),
+    ('evaluated', boolean),
+    ('vectorised',boolean),
+    ('MPV', float64[:, :]),
+    ('MWind', float64[:, :]),
+    ('MBaseload', float64[:, :]),
+    ('MPeak', float64[:, :]),
+    ('MDischarge', float64[:, :]),
+    ('MCharge', float64[:, :]),
+    ('MStorage', float64[:, :]),
+    ('MDeficit', float64[:, :]),
+    ('MSpillage', float64[:, :]),
+    ('MHydro', float64[:, :]),
+    ('MBio', float64[:, :]),
+    ('CDP', float64[:]),
+    ('CDS', float64[:]),
+    ('TDC', float64[:, :]),
+    ('CDC', float64[:]),
+    ('KH', float64[:]),
+    ('LA', float64[:]),
+    ('TH', float64[:]),
+    ('VH', float64[:]),
+    ('VS', float64[:]),
+    ('Topology', float64[:, :]),
+    ('network', int64[:, :, :, :]),
+    ('directconns', int64[:,:]),
+    ('CHVDC', float64[:]),
+    ('Transmission', float64[:, :]),
+]
+
+
+@jitclass(solution_spec)
 class Solution:
     """A candidate solution of decision variables CPV(i), CWind(i), CPHP(j), S-CPHS(j)"""
 
     def __init__(self, x):
         self.x = x
-        self.MLoad = MLoad
-        self.intervals, self.nodes = (intervals, nodes)
+        
+        self.intervals, self.nodes = intervals, nodes
         self.resolution = resolution
+        self.network, self.directconns = network, directconns
+        
+        self.MLoad = MLoad
 
-        self.CPV = list(x[: pidx]) # CPV(i), GW
-        self.CWind = list(x[pidx: widx]) # CWind(i), GW
-        self.GPV = TSPV * np.tile(self.CPV, (intervals, 1)) * pow(10, 3) # GPV(i, t), GW to MW
-        self.GWind = TSWind * np.tile(self.CWind, (intervals, 1)) * pow(10, 3) # GWind(i, t), GW to MW
+        self.CPV = x[: pidx]  # CPV(i), GW
+        self.CWind = x[pidx: widx]  # CWind(i), GW
+        
+        # Manually replicating np.tile functionality for CPV and CWind
+        CPV_tiled = np.zeros((intervals, len(self.CPV)))
+        CWind_tiled = np.zeros((intervals, len(self.CWind)))
+        # CInter_tiled = np.zeros((intervals, len(self.CWind)))
+        for i in range(intervals):
+            for j in range(len(self.CPV)):
+                CPV_tiled[i, j] = self.CPV[j]
+            for j in range(len(self.CWind)):
+                CWind_tiled[i, j] = self.CWind[j]
 
-        self.CPHP = list(x[widx: sidx]) # CPHP(j), GW
-        self.CPHS = x[sidx] # S-CPHS(j), GWh
+        GPV = TSPV * CPV_tiled * 1000.  # GPV(i, t), GW to MW
+        GWind = TSWind * CWind_tiled * 1000.  # GWind(i, t), GW to MW
+        
+        self.GPV, self.GWind = np.empty((intervals, nodes), np.float64), np.empty((intervals, nodes), np.float64)
+        for i, j in enumerate(Nodel_int):
+            self.GPV[:,i] = GPV[:, PVl_int==j].sum(axis=1)
+            self.GWind[:,i] = GWind[:, Windl_int==j].sum(axis=1) 
+        
+        self.CPHP = x[widx: spidx]  # CPHP(j), GW
+        self.CPHS = x[spidx: seidx]  # S-CPHS(j), GWh
+        self.CHVDC = x[seidx:]
+        
         self.efficiency = efficiency
 
-        #self.CInter = x[sidx+1: iidx] if node=='Super2' else [0] # CInter(j), GW
-        #self.GInter = np.tile(self.CInter, (intervals, 1)) * pow(10, 3) # GInter(j, t), GW to MW
-
-        self.Nodel, self.PVl, self.Windl = (Nodel, PVl, Windl)
-        #self.Interl = Interl
-        self.node = node
+        # self.Nodel_int, self.PVl_int, self.Windl_int = Nodel_int, PVl_int, Windl_int
+        
+        # self.node = node
 
         self.GHydro, self.GBaseload, self.CPeak = (GHydro, GBaseload, CPeak) #Will need to make a change here? 
         self.CHydro, self.EHydro = (CHydro, EHydro) # GW, GWh 
-
+        
         self.allowance = allowance
+        
+        self.evaluated=False
+        
+    def _evaluate(self):
+        self.Lcoe, self.Penalties = F(self)
+        self.evaluated=True
 
-    def __repr__(self):
-        """S = Solution(list(np.ones(64))) >> print(S)"""
-        return 'Solution({})'.format(self.x)
+    #Incompatible with jitclass
+    # def __repr__(self):
+    #     """S = Solution(list(np.ones(64))) >> print(S)"""
+    #     return 'Solution({})'.format(self.x)
+    
+#%%
+if __name__ == '__main__':
+    x = np.random.rand(len(lb))*(ub-lb)+ub
+    S = Solution(x)
+    S._evaluate()
+    print(S.Lcoe, S.Penalties)
