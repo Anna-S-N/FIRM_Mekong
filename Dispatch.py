@@ -9,6 +9,7 @@ from Simulation import Reliability
 import datetime as dt
 from multiprocessing import Pool, cpu_count
 
+
 def Flexible(instance):
     """Energy source of high flexibility"""
 
@@ -23,8 +24,8 @@ def Flexible(instance):
     startidx = int((24 / resolution) * (year - firstyear) * 365)
     endidx = int((24 / resolution) * (year+1 - firstyear) * 365)
 
-    Fcapacity = CPeak.sum() * pow(10, 3) # GW to MW
-    flexible = Fcapacity * np.ones(endidx - startidx)
+    Fcapacity = CPeak * 1000 # GW to MW
+    flexible = Fcapacity * np.ones((endidx - startidx, S.nodes)) 
 
     for i in range(0, endidx - startidx, timestep):
         flexible[i: i+timestep] = 0
@@ -60,5 +61,5 @@ def Analysis(x):
     return True
 
 if __name__ == '__main__':
-    capacities = np.genfromtxt('Data/Optimisation_resultx.csv', delimiter=',', skip_header=1)
+    capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population), delimiter=',')
     Analysis(capacities)
