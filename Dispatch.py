@@ -9,6 +9,7 @@ from Simulation import Reliability
 import datetime as dt
 from multiprocessing import Pool, cpu_count
 
+
 def Flexible(instance):
     """Energy source of high flexibility"""
 
@@ -54,8 +55,8 @@ def Analysis(x):
     endtime = dt.datetime.now()
     print('Dispatch took', endtime - starttime)
 
-    # from Statistics import Information
-    # Information(x, Flex)
+    from Statistics import Information
+    Information(x, Flex)
 
     return True
 

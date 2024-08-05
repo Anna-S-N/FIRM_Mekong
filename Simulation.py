@@ -69,7 +69,7 @@ def Reliability(solution, flexible, start=None, end=None):
             Fillt = np.maximum(Netloadt - Discharget, 0)
             Surplust = -1 * np.minimum(0, Netloadt + Charget) + np.minimum(Pcapacity, Storaget_1 / resolution)
 
-            Transmissiont = hvdc_even2(Fillt, Surplust, Hcapacity, network, networksteps, Transmissiont)
+            Transmissiont = hvdc_even(Fillt, Surplust, Hcapacity, network, networksteps, Transmissiont)
             
             Netloadt = Netload[t] - Transmissiont.sum(axis=0)
             Charget = np.minimum(np.minimum(-1 * np.minimum(0, Netloadt), Pcapacity), (Scapacity - Storaget_1) / efficiency / resolution)
@@ -82,12 +82,13 @@ def Reliability(solution, flexible, start=None, end=None):
         
         Surplust = -1 * np.minimum(0, Netloadt + Charget) 
         if Surplust.sum() > 1e-6:
+            # raise KeyboardInterrupt
             # Distribute surplus energy with transmission to areas with spare charging capacity
             Fillt = (np.maximum(0, Netloadt) #load
                         + np.minimum(Pcapacity, (Scapacity - Storaget_1) / efficiency / resolution) #full charging capacity
                         - Charget) #charge capacity already in use
 
-            Transmissiont = hvdc_even2(Fillt, Surplust, Hcapacity, network, networksteps,
+            Transmissiont = hvdc_even(Fillt, Surplust, Hcapacity, network, networksteps,
                                  Transmissiont)
             
             Netloadt = Netload[t] - Transmissiont.sum(axis=0)
@@ -126,7 +127,7 @@ def hvdc(Fillt, Surplust, Hcapacity, network, networksteps, Transmissiont):
        
         for leg in range(networksteps):
             donors = network[:, n, perfect[leg]:perfect[leg+1], :]
-            donors, donor_lines = donors[0, :, :], donors[1, :, :]
+            donors, donor_lines = donors[0, :, :], donors[1, : ,:]
   
             valid_mask = donors[-1] != -1
             if np.prod(~valid_mask):
@@ -216,6 +217,8 @@ def hvdc_even(Fillt, Surplust, Hcapacity, network, networksteps, Transmissiont):
 
 @njit
 def hvdc_even2(Fillt, Surplust, Hcapacity, network, networksteps, Transmissiont):
+    
+    raise NotImplementedError
     maxconnections = network.shape[-1]
 
     for leg in range(networksteps):
@@ -227,16 +230,14 @@ def hvdc_even2(Fillt, Surplust, Hcapacity, network, networksteps, Transmissiont)
         
         donors = np.hstack((np.repeat(np.arange(len(Fillt)), maxconnections).reshape(len(Fillt), 1, maxconnections)[Fillmask], donors))
         donors = donors.transpose(1, 0, 2)
-        
+        donor_lines = donor_lines.transpose(1, 0, 2)
+
         _transmission = np.zeros(valid_mask.shape, np.float64)
         valid_mask = (donors[-1, :, :] != -1).flatten()
         
         _transmission.ravel()[valid_mask] = Surplust[donors[-1].ravel()[valid_mask]]
 
         CLine = Hcapacity - np.maximum(0, Transmissiont).sum(axis=1)
-
-        donor_lines = donor_lines.transpose(1, 0, 2)
-
         for line in np.unique(donor_lines):
             if line==-1:
                 continue
@@ -251,6 +252,13 @@ def hvdc_even2(Fillt, Surplust, Hcapacity, network, networksteps, Transmissiont)
         # _transmission[~divzeromask] = 0 
         
         _transmission /= np.atleast_2d(np.maximum(1, _transmission.sum(axis=1)/Fillt[Fillmask])).T
+        
+        #TODO - reduce transmission so as not to take too much surplus
+        _transmission /= np.atleast_2d(np.maximum(1, _transmission.sum(axis=1)/             
+                                                  
+                                                  Surplust[donors[-1].ravel()[valid_mask]])).T
+
+
 
         Fillt[Fillmask] -= _transmission.sum(axis=1)
         

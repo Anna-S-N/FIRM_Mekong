@@ -192,40 +192,43 @@ if 'Super' in node:
 
     perfect = np.array([0,1,3,6,10,15,21]) #that's more than enough for now
 
-    network = -1*np.ones((len(Nodel), perfect[len(networks)], maxconnections, 2), dtype=np.int64)
+    network = -1*np.ones((2, len(Nodel), perfect[len(networks)], maxconnections), dtype=np.int64)
     for i, net in enumerate(networks):
         conns = np.zeros(len(Nodel), int)
         for j, row in enumerate(net):
-            network[row[0], perfect[i]:perfect[i+1], conns[row[0]], 0] = row[1:]
-            network[row[-1], perfect[i]:perfect[i+1], conns[row[-1]], 0] = row[:-1][::-1]
+            network[0, row[0], perfect[i]:perfect[i+1], conns[row[0]]] = row[1:]
+            network[0, row[-1], perfect[i]:perfect[i+1], conns[row[-1]]] = row[:-1][::-1]
             conns[row[0]]+=1
             conns[row[-1]]+=1
             
-    for i in range(network.shape[0]):
-        for j in range(network.shape[1]):
-            for k in range(network.shape[2]):
+    for i in range(network.shape[1]):
+        for j in range(network.shape[2]):
+            for k in range(network.shape[3]):
                 if j in perfect:
                     start=i
                 else: 
-                    start=network[i, j-1, k, 0]
-                network[i, j, k, 1] = directconns[start, network[i, j, k, 0]]
+                    start=network[0, i, j-1, k]
+                network[1, i, j, k] = directconns[start, network[0, i, j, k]]
 
     directconns=directconns[:-1, :-1]
     
     # =============================================================================
     # network is a 4d array representing network connections 
     
-    # network[m, :, :, :] shows the network connections to node m 
-    # network[m, 0, :, :] shows the primary (direct) connections 
-    # network[m, 1:3, :, :] shows the secondary connections 
-    #       (i.e. m connects to network[m, 2, :, :] via network[m, 1, :, :])
-    # network[m, 3:6, :, :] shows the tertiary connections etc. 
+    # The first index specifies whether we are talking about node-node connections 
+    #   or the lines which connect the nodes
+    # each element in network[0, :, :, :] represents a node-node connection
+    # each element in network[1, :, :, :] indicates the line that that connection uses
+    
+    # The second index is the reference node and the third index relates to the 
+    #   length of the connection
+    # network[:, m, :, :] shows the network connections to node m 
+    # network[:, m, 0, :] shows the primary (direct) connections 
+    # network[:, m, 1:3, :] shows the secondary connections 
+    #       (i.e. m connects to network[:, m, 2, :] via network[:, m, 1, :])
+    # network[:, m, 3:6, :] shows the tertiary connections etc. 
 
-    # the third index is used to hold multiple connections 
-    # the fourth index controls whether we are talking about node-node connections
-    #       or the line which is connecting them 
-    #       i.e. network[m, 0, :, 0] gives all the nodes that node m connects to directly
-    #            network[m, 0, :, 1] gives the lines along which those connections occur
+    # the fourth  index is used to hold multiple connections 
 
     # -1 is used ot portray empty value
     # =============================================================================
@@ -242,15 +245,15 @@ spidx, seidx = pzones + wzones + nodes, pzones + wzones + nodes + nodes
 #iidx = sidx + 1 + inters
 
 energy = MLoad.sum() * pow(10, -9) * resolution / years # PWh p.a.
-contingency = list(0.25 * MLoad.max(axis=0) * pow(10, -3)) # MW to GW
+contingency = list(0.25 * MLoad.max(axis=0) * 0.001) # MW to GW
 
-GBaseload = np.tile(CBaseload, (intervals, 1)) * pow(10, 3) # GW to MW, excluding hydro
+GBaseload = np.tile(CBaseload, (intervals, 1)) * 1000 # GW to MW, excluding hydro
 GHydro = hydroProfiles
 
 ###### Network Constraints
 #manage = 0 # weeks
 #allowance = MLoad.sum(axis=1).max() * 0.05 * manage * 168 * efficiency # MWh
-allowance = min(0.00002*np.reshape(MLoad.sum(axis=1), (-1,8760)).sum(axis=-1)) # Allowable annual deficit of 0.002%, MWh
+allowance = min(0.000_02*np.reshape(MLoad.sum(axis=1), (-1,8760)).sum(axis=-1)) # Allowable annual deficit of 0.002%, MWh
 
 ###### DECISION VARIABLE UPPER AND LOWER BOUNDS ######
 pv_lb = list(pv_lb_np)
@@ -287,7 +290,7 @@ def F(S):
     CHVDC = np.zeros(len(network_mask), dtype=np.float64)
     CHVDC[network_mask] = S.CHVDC
 
-    _c = -1.0 if 'super' not in node else -1.0
+    _c = -1.0 if 'super' not in node else -1.0 # unclear if rules here have changed since previous versions of FIRM
     cost = (factor * np.array([S.CPV.sum(), S.CWind.sum(), 0, S.CPHP.sum(), S.CPHS.sum()] + list(CHVDC) +
                                [S.CPV.sum(), S.CWind.sum(), Hydro * 0.000_001, Fossil*0.000_001, _c, _c])
             ).sum()
@@ -302,26 +305,27 @@ def F(S):
 solution_spec = [
     ('x', float64[:]),  # x is 1d array
     ('MLoad', float64[:, :]),  # 2D array of floats
-    ('intervals', int64),
+    ('intervals', int64), # plain integer
     ('nodes', int64),
-    ('resolution',float64),
+    ('resolution',float64), # plain float
     ('allowance',float64),
-    ('CPV', float64[:]), # 1D array of floats
-    ('CWind', float64[:]), # 1D array of floats
-    ('GPV', float64[:, :]),  # 2D array of floats
-    ('GWind', float64[:, :]),  # 2D array of floats
+    ('CPV', float64[:]), 
+    ('CWind', float64[:]), 
     ('CPHP', float64[:]),
     ('CPHS', float64[:]),
+    ('CHVDC', float64[:]),
+    ('GPV', float64[:, :]), 
+    ('GWind', float64[:, :]),  
     ('CHVDC', float64[:]),
     ('efficiency', float64),
     ('Nodel_int', int64[:]), 
     ('PVl_int', int64[:]),
     ('Windl_int', int64[:]),
-    ('GBaseload', float64[:, :]),  # 2D array of floats
-    ('GHydro', float64[:, :]),  # 2D array of floats
-    ('CPeak', float64[:]),  # 1D array of floats
-    ('CHydro', float64[:]),  # 1D array of floats
-    ('EHydro', float64[:]),  # 1D array of floats
+    ('GBaseload', float64[:, :]),
+    ('GHydro', float64[:, :]), 
+    ('CPeak', float64[:]), 
+    ('CHydro', float64[:]),
+    ('EHydro', float64[:]),
     ('flexible', float64[:,:]),
     ('Discharge', float64[:,:]),
     ('Charge', float64[:,:]),
@@ -338,6 +342,7 @@ solution_spec = [
     # ('MWind', float64[:, :]),
     ('MBaseload', float64[:, :]),
     ('MPeak', float64[:, :]),
+    ('MFossil', float64[:, :]),
     # ('MDischarge', float64[:, :]),
     # ('MCharge', float64[:, :]),
     # ('MStorage', float64[:, :]),
@@ -371,6 +376,7 @@ class Solution:
         self.intervals, self.nodes = intervals, nodes
         self.resolution = resolution
         self.network, self.directconns = network, directconns
+        self.trans_tdc_mask = trans_tdc_mask
         
         self.MLoad = MLoad
 
@@ -423,7 +429,10 @@ class Solution:
     
 #%%
 if __name__ == '__main__':
-    x = np.random.rand(len(lb))*(ub-lb)+ub
-    S = Solution(x)
-    S._evaluate()
-    print(S.Lcoe, S.Penalties)
+    x = np.genfromtxt("Results/Optimisation_resultx_Super13_3_10_7.csv", delimiter=',')
+    def test():
+        x = np.random.rand(len(lb))*(ub-lb)+ub
+        S = Solution(x)
+        S._evaluate()
+        print(S.Lcoe, S.Penalties)
+    test()
