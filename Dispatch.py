@@ -23,8 +23,8 @@ def Flexible(instance):
     startidx = int((24 / resolution) * (year - firstyear) * 365)
     endidx = int((24 / resolution) * (year+1 - firstyear) * 365)
 
-    Fcapacity = CPeak.sum() * pow(10, 3) # GW to MW
-    flexible = Fcapacity * np.ones(endidx - startidx)
+    Fcapacity = CPeak * 1000 # GW to MW
+    flexible = Fcapacity * np.ones((endidx - startidx, S.nodes)) 
 
     for i in range(0, endidx - startidx, timestep):
         flexible[i: i+timestep] = 0
@@ -54,11 +54,11 @@ def Analysis(x):
     endtime = dt.datetime.now()
     print('Dispatch took', endtime - starttime)
 
-    from Statistics import Information
-    Information(x, Flex)
+    # from Statistics import Information
+    # Information(x, Flex)
 
     return True
 
 if __name__ == '__main__':
-    capacities = np.genfromtxt('Data/Optimisation_resultx.csv', delimiter=',', skip_header=1)
+    capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population), delimiter=',')
     Analysis(capacities)

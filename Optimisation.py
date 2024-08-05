@@ -32,12 +32,6 @@ def Objective(x):
     return S.Lcoe + S.Penalties
 
 
-if __name__ == '__main__':
-    x = np.random.rand(len(lb))*(ub-lb)+ub
-    S = Solution(x)
-    S._evaluate()
-    print(S.Lcoe, S.Penalties)
-
 if __name__=='__main__':
     starttime = dt.datetime.now()
     print("Optimisation starts at", starttime)

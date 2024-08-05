@@ -1,4 +1,3 @@
-# Load profiles and generation mix data (LPGM) & energy generation, storage and transmission information (GGTA)
 # based on x/capacities from Optimisation and flexible from Dispatch
 # Copyright (c) 2020 Bin Lu, The Australian National University
 # Licensed under the MIT Licence
@@ -18,8 +17,8 @@ def Debug(solution):
     Load, PV, Wind = (solution.MLoad.sum(axis=1), solution.GPV.sum(axis=1), solution.GWind.sum(axis=1))
     Baseload, Peak = (solution.MBaseload.sum(axis=1), solution.MPeak.sum(axis=1))
 
-    Discharge, Charge, Storage = (solution.Discharge, solution.Charge, solution.Storage)
-    Deficit, Spillage = (solution.Deficit, solution.Spillage)
+    Discharge, Charge, Storage = (solution.Discharge.sum(axis=1), solution.Charge.sum(axis=1), solution.Storage.sum(axis=1))
+    Deficit, Spillage = (solution.Deficit.sum(axis=1), solution.Spillage.sum(axis=1))
 
     PHS = solution.CPHS * pow(10, 3) # MWh
     efficiency = solution.efficiency
@@ -61,8 +60,8 @@ def LPGM(solution):
     C = np.stack([solution.MLoad.sum(axis=1),
                   #solution.MHydro.sum(axis=1), solution.MFossil.sum(axis=1), solution.MInter.sum(axis=1), solution.GPV.sum(axis=1), solution.GWind.sum(axis=1),
                   solution.MBaseload.sum(axis=1), solution.MFossil.sum(axis=1), solution.GPV.sum(axis=1), solution.GWind.sum(axis=1),
-                  solution.Discharge, solution.Deficit, -1 * solution.Spillage, -1 * solution.Charge,
-                  solution.Storage,
+                  solution.Discharge.sum(axis=1), solution.Deficit.sum(axis=1), -1 * solution.Spillage.sum(axis=1), -1 * solution.Charge.sum(axis=1),
+                  solution.Storage.sum(axis=1),
                   solution.KHTH,
                   solution.KHVS,
                   solution.LATH, solution.LAVH])#solution.AWIJ, solution.ANIT, solution.BNIK, solution.BNPL, solution.BNSG, solution.KHTH, solution.KHVS, solution.CNVH, solution.INMM, solution.IJIK, solution.IJIS, solution.IJIT, solution.IJSG, solution.IKIC, solution.IMIP, solution.IMIC, solution.LATH, solution.LAVH, solution.MYSG, solution.MYTH, solution.MMTH, solution.PLPV, solution.PMPV])
@@ -88,9 +87,9 @@ def LPGM(solution):
 #   This iterates over the nodes and creates csv files for each one
         for j in range(nodes):
             C_node = np.stack([solution.MLoad[:, j],
-                          solution.MBaseload[:, j], solution.MFossil[:, j], solution.MPV[:, j], solution.MWind[:, j],
-                          solution.MDischarge[:, j], solution.MDeficit[:, j], -1 * solution.MSpillage[:, j], solution.Topology[j], -1 * solution.MCharge[:, j],
-                          solution.MStorage[:, j]])
+                          solution.MBaseload[:, j], solution.MFossil[:, j], solution.GPV[:, j], solution.GWind[:, j],
+                          solution.Discharge[:, j], solution.Deficit[:, j], -1 * solution.Spillage[:, j], solution.Topology[j], -1 * solution.Charge[:, j],
+                          solution.Storage[:, j]])
             C_node = np.around(C_node.transpose())
 
             # Inserting datetime and converting to string format
@@ -114,7 +113,7 @@ def GGTA(solution):
 
     #Importing capacities [GW,GWh] from the least-cost solution
     #CPV, CWind, CPHP, CPHS, CInter = (sum(solution.CPV), sum(solution.CWind), sum(solution.CPHP), solution.CPHS, sum(solution.CInter)) # GW, GWh
-    CPV, CWind, CPHP, CPHS = (sum(solution.CPV), sum(solution.CWind), sum(solution.CPHP), solution.CPHS) # GW, GWh
+    CPV, CWind, CPHP, CPHS = (sum(solution.CPV), sum(solution.CWind), sum(solution.CPHP), sum(solution.CPHS)) # GW, GWh
     CapHydro = (CHydro).sum() # Hydropower: GW
     CapOther = (CGeo + CBio + CWaste).sum() #Other: GW
     CapFossil = (CCoal + CGas + COil).sum() # Fossil fuels: GW
@@ -231,23 +230,21 @@ def Information(x, flexible):
     except AssertionError:
         pass
 
-    if 'Super' in node:
-        S.TDC = Transmission(S, output=True) # TDC(t, k), MW
-    else:
+    if 'Super' not in node:
         S.TDC = np.zeros((intervals, len(DCloss))) # TDC(t, k), MW
 
-        S.MPeak = np.tile(flexible, (nodes, 1)).transpose() # MW
-        S.MBaseload = GBaseload.copy() + GHydro.copy() # MW
+    S.MPeak = flexible.copy()
+    S.MBaseload = GBaseload.copy() + GHydro.copy() # MW
 
-        S.MPV = S.GPV.copy()
-        S.MWind = S.GWind.copy() if S.GWind.shape[1]>0 else np.zeros((intervals, 1))
-        #S.MInter = S.GInter.copy()
+    # S.MPV = S.GPV.copy()
+    S.MWind = S.GWind.copy() if S.GWind.shape[1]>0 else np.zeros((intervals, 1))
+    # #S.MInter = S.GInter.copy()
 
-        S.MDischarge = np.tile(S.Discharge, (nodes, 1)).transpose()
-        S.MDeficit = np.tile(S.Deficit, (nodes, 1)).transpose()
-        S.MCharge = np.tile(S.Charge, (nodes, 1)).transpose()
-        S.MStorage = np.tile(S.Storage, (nodes, 1)).transpose()
-        S.MSpillage = np.tile(S.Spillage, (nodes, 1)).transpose()
+    # S.MDischarge = S.Discharge.copy()
+    # S.MDeficit = S.Deficit.copy()
+    # S.MCharge = S.Charge.copy()
+    # S.MStorage = S.Storage.copy()
+    # S.MSpillage = S.Spillage.copy()
 
     S.CDC = np.amax(abs(S.TDC), axis=0) * pow(10, -3) # CDC(k), MW to GW
     S.KHTH, S.KHVS, S.LATH, S.LAVH, = map(lambda k: S.TDC[:, k], range(S.TDC.shape[1]))
@@ -296,6 +293,6 @@ def Information(x, flexible):
     return True
 
 if __name__ == '__main__':
-    capacities = np.genfromtxt('Results/Optimisation_resultx_TH_3_150_8.csv', delimiter=',')
-    flexible = np.genfromtxt('Results/Dispatch_Flexible_TH_3_150_8.csv', delimiter=',', skip_header=1)
+    capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population), delimiter=',')
+    flexible = np.genfromtxt('Results/Dispatch_Flexible_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population), delimiter=',', skip_header=1)
     Information(capacities, flexible)

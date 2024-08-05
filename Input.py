@@ -88,8 +88,28 @@ if 'Super' not in node:
     CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
     CPeak = CPeak[np.where(Nodel==node)[0]] # GW
 
+    network_mask = np.zeros(4, np.bool_)
+    network = np.empty((0,0,0,0), np.int64)
+    directconns=np.empty((0,0), np.int64)
+    
+    
+    Nodel_int = Nodel_int[np.where(Nodel==node)[0]]
+    Nodel = Nodel[np.where(Nodel==node)[0]]
+    PVl_int = PVl_int[np.where(PVl==node)[0]]
+    pv_lb_np = pv_lb_np[np.where(PVl==node)[0]]
+    pv_ub_np = pv_ub_np[np.where(PVl==node)[0]]
+    PVl = PVl[np.where(PVl==node)[0]]
+    Windl_int = Windl_int[np.where(Windl==node)[0]]
+    Windl = Windl[np.where(Windl==node)[0]]
+    
+
 ###### Transmission Network ######
 if 'Super' in node: 
+    # # coverage to be fixed
+    # coverage = np.where(Nodel==node)[0]
+    # Nodel = Nodel[coverage]
+    # Nodel_int = Nodel_int[coverage]
+    
     #Full network of all node connections
     network = np.array([[0, 3], #KH-TH
                         [0, 4], #KH-VS
@@ -103,6 +123,16 @@ if 'Super' in node:
     networkdict = {v:k for k, v in enumerate(Nodel_int)}
     #translate into indicies rather than Nodel_int values
     network = np.array([networkdict[n] for n in network.flatten()], np.int64).reshape(network.shape)
+    
+    trans_tdc_mask = np.zeros((len(network), MLoad.shape[1]), np.bool_)
+    for line, row in enumerate(network):
+        trans_tdc_mask[line, row[0]] = True
+    
+    directconns = -1*np.ones((len(Nodel)+1, len(Nodel)+1), np.int64)
+    for n, row in enumerate(network):
+        directconns[*row] = n
+        directconns[*row[::-1]] = n
+    
     
     def network_neighbours(n):
         isn_mask = np.isin(network, n)
@@ -162,11 +192,6 @@ if 'Super' in node:
 
     perfect = np.array([0,1,3,6,10,15,21]) #that's more than enough for now
 
-    directconns = -1*np.ones((len(Nodel)+1, len(Nodel)+1), np.int64)
-    for n, row in enumerate(networks[0]):
-        directconns[*row] = n
-        directconns[*row[::-1]] = n
-    
     network = -1*np.ones((len(Nodel), perfect[len(networks)], maxconnections, 2), dtype=np.int64)
     for i, net in enumerate(networks):
         conns = np.zeros(len(Nodel), int)
@@ -189,19 +214,20 @@ if 'Super' in node:
     
     # =============================================================================
     # network is a 4d array representing network connections 
-    # first index corresponds to a node and the values held in the matrix 
-    # correspond to connections. 
-    # The length of the second index is always a perfect number (1+2+3+...+n)
-    #   0:1 specify primary (direct) connections
-    #   1:3 specify secondary connections - i.e. connected to [2] via [1]
-    #   3:6 specify tertiary connections - i.e. connected to [5] via [4] via [3]
-    #   etc. 
-    # With lastindex=0, the values are the nodes connected to 
-    # With lastindex=1, the values are the lines used by the connection
-    #
-    # The third index is used for multiple connections
-    # 
-    # The network variable uses -1 for empty values 
+    
+    # network[m, :, :, :] shows the network connections to node m 
+    # network[m, 0, :, :] shows the primary (direct) connections 
+    # network[m, 1:3, :, :] shows the secondary connections 
+    #       (i.e. m connects to network[m, 2, :, :] via network[m, 1, :, :])
+    # network[m, 3:6, :, :] shows the tertiary connections etc. 
+
+    # the third index is used to hold multiple connections 
+    # the fourth index controls whether we are talking about node-node connections
+    #       or the line which is connecting them 
+    #       i.e. network[m, 0, :, 0] gives all the nodes that node m connects to directly
+    #            network[m, 0, :, 1] gives the lines along which those connections occur
+
+    # -1 is used ot portray empty value
     # =============================================================================
 
 ###### DECISION VARIABLE LIST INDEXES ######
@@ -238,10 +264,10 @@ CDCmax = 100.*np.ones_like(DCloss)
 
 #lb = pv_lb + [0.]    * wzones + phes_lb + contingency + [0.] # 
 #lb = [0.]     * pzones + [0.]    * wzones + contingency      + [0.]      #+ [0.]    * inters (previous lb)
-lb = np.array(pv_lb + [0.]    * wzones + contingency      + [0.] * nodes     + [0.] * network_mask.sum())
+lb = np.array(pv_lb + [0.]    * wzones + contingency + [0.] * nodes     + [0.] * network_mask.sum())
 #ub = pv_ub + wind_ub + phes_ub + [10000.] * nodes + [100000.] #
 #ub = [10000.] * pzones + [300.]  * wzones + [10000.] * nodes + [100000.] #+ [1000.] * inters
-ub = np.array(pv_ub + [300.]  * wzones + [10000.] * nodes + [50000.] * nodes + list(CDCmax[network_mask]))
+ub = np.array(pv_ub + [300.]  * wzones + [10000.] * nodes    + [50000.] * nodes + list(CDCmax[network_mask]))
 
 #%%
 from Simulation import Reliability
@@ -286,6 +312,7 @@ solution_spec = [
     ('GWind', float64[:, :]),  # 2D array of floats
     ('CPHP', float64[:]),
     ('CPHS', float64[:]),
+    ('CHVDC', float64[:]),
     ('efficiency', float64),
     ('Nodel_int', int64[:]), 
     ('PVl_int', int64[:]),
@@ -302,19 +329,20 @@ solution_spec = [
     ('Deficit', float64[:,:]),
     ('Spillage', float64[:,:]),
     ('Netload' ,float64[:,:]),
+    ('Import' ,float64[:,:]),
+    ('Export' ,float64[:,:]),
     ('Penalties', float64),
     ('Lcoe', float64),
     ('evaluated', boolean),
-    ('vectorised',boolean),
-    ('MPV', float64[:, :]),
-    ('MWind', float64[:, :]),
+    # ('MPV', float64[:, :]),
+    # ('MWind', float64[:, :]),
     ('MBaseload', float64[:, :]),
     ('MPeak', float64[:, :]),
-    ('MDischarge', float64[:, :]),
-    ('MCharge', float64[:, :]),
-    ('MStorage', float64[:, :]),
-    ('MDeficit', float64[:, :]),
-    ('MSpillage', float64[:, :]),
+    # ('MDischarge', float64[:, :]),
+    # ('MCharge', float64[:, :]),
+    # ('MStorage', float64[:, :]),
+    # ('MDeficit', float64[:, :]),
+    # ('MSpillage', float64[:, :]),
     ('MHydro', float64[:, :]),
     ('MBio', float64[:, :]),
     ('CDP', float64[:]),
@@ -329,8 +357,7 @@ solution_spec = [
     ('Topology', float64[:, :]),
     ('network', int64[:, :, :, :]),
     ('directconns', int64[:,:]),
-    ('CHVDC', float64[:]),
-    ('Transmission', float64[:, :]),
+    ('trans_tdc_mask', boolean[:,:]),
 ]
 
 
@@ -362,7 +389,7 @@ class Solution:
 
         GPV = TSPV * CPV_tiled * 1000.  # GPV(i, t), GW to MW
         GWind = TSWind * CWind_tiled * 1000.  # GWind(i, t), GW to MW
-        
+
         self.GPV, self.GWind = np.empty((intervals, nodes), np.float64), np.empty((intervals, nodes), np.float64)
         for i, j in enumerate(Nodel_int):
             self.GPV[:,i] = GPV[:, PVl_int==j].sum(axis=1)
