@@ -101,11 +101,11 @@ def Reliability(solution, flexible, start=None, end=None):
         Charge[t] = Charget
         Storage[t] = Storaget
         Import[t] = np.maximum(0, Transmissiont).sum(axis=0)
-        Export[t] = np.minimum(0, Transmissiont).sum(axis=0)
+        Export[t] = -1 * np.minimum(0, Transmissiont).sum(axis=0)
         TDC[t] = (Transmissiont*trans_tdc_mask).sum(axis=1)
         
-    Deficit = np.maximum(Netload - Import + Export - Discharge, np.zeros_like(Netload))
-    Spillage = -1 * np.minimum(Netload + Charge, np.zeros_like(Netload))
+    Deficit = np.maximum(0, Netload - Import + Export - Discharge)
+    Spillage = -1 * np.minimum(0, Netload + Charge - Import + Export)
 
     solution.flexible = flexible
     solution.Spillage = Spillage
@@ -118,6 +118,8 @@ def Reliability(solution, flexible, start=None, end=None):
     solution.TDC = TDC
     
     return Deficit
+
+
 
 @njit
 def hvdc(Fillt, Surplust, Hcapacity, network, networksteps, Transmissiont):

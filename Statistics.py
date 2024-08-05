@@ -25,13 +25,14 @@ def Debug(solution):
     efficiency = solution.efficiency
 
     for i in range(intervals):
+        # net imports = net exports
         assert abs(Import[i]-Export[i]) <=1 
         
         # Energy supply-demand balance
         """ assert abs(Load[i] + Charge[i] + Spillage[i]
                     - PV[i] - Wind[i] - Inter[i] - Baseload[i] - Peak[i] - Discharge[i] - Deficit[i]) <= 1 """
-        sup_equ_dem = (Load[i] + Charge[i] + Spillage[i]
-                    - PV[i] - Wind[i] - Baseload[i] - Peak[i] - Discharge[i] - Deficit[i])
+        sup_equ_dem = (Load[i] + Charge[i] + Spillage[i] 
+                    - PV[i] - Wind[i] - Baseload[i] - Peak[i] - Discharge[i] - Deficit[i] )
         assert abs(sup_equ_dem) <= 1, (i, sup_equ_dem)
 
         # Discharge, Charge and Storage
@@ -48,7 +49,7 @@ def Debug(solution):
 
             assert np.amax(Discharge) <= sum(solution.CPHP) * pow(10, 3), print(np.amax(Discharge) - sum(solution.CPHP) * pow(10, 3))
             assert np.amax(Charge) <= sum(solution.CPHP) * pow(10, 3), print(np.amax(Charge) - sum(solution.CPHP) * pow(10, 3))
-            assert np.amax(Storage) <= solution.CPHS * pow(10, 3), print(np.amax(Storage) - sum(solution.CPHS) * pow(10, 3))
+            assert np.amax(Storage) <= sum(solution.CPHS) * pow(10, 3), print(np.amax(Storage) - sum(solution.CPHS) * pow(10, 3))
         except AssertionError:
             pass
 
@@ -236,7 +237,7 @@ def Information(x, flexible):
         S.TDC = np.zeros((intervals, len(DCloss))) # TDC(t, k), MW
 
     S.MPeak = flexible.copy()
-    S.MBaseload = GBaseload.copy() + GHydro.copy() # MW
+    S.MBaseload = GBaseload.copy() #+ GHydro.copy() # MW
 
     # S.MPV = S.GPV.copy()
     # S.MWind = S.GWind.copy() if S.GWind.shape[1]>0 else np.zeros((intervals, 1))
