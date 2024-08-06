@@ -1,6 +1,6 @@
 Node,Code,Fraction,Coal,Gas,Oil,Hydro,Geothermal,Biomass,Waste
-Cambodia,KH,1,0,0,0,1852,0,14,0
-Laos,LA,1,0,0,0,15000,0,0,0
-Thailand,TH,1,0,0,0,5540,0,8223,0
-Vietnam-Hanoi,VH,0.5,0,0,0,29272,0,29.5,0
-Vietnam-HCMC,VS,0.5,0,0,0,29272,0,29.5,0
+Cambodia,KH,1,0,0,0,0,0,14,0
+Laos,LA,1,0,0,0,0,0,0,0
+Thailand,TH,1,0,0,0,0,0,8223,0
+Vietnam-Hanoi,VH,0.5,0,0,0,0,0,29.5,0
+Vietnam-HCMC,VS,0.5,0,0,0,0,0,29.5,0
