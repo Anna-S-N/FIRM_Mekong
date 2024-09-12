@@ -21,14 +21,14 @@ args = parser.parse_args()
 percapita, node, iterations, population = (args.e, args.n, args.i, args.p)
 
 ###### NODAL LISTS ######
-Nodel = np.array(['KH', 'LA', 'VH', 'VS', 'CACE', 'CACW', 'CACN', 'MAC', 'NAC', 'NEC', 'SAC'])
+Nodel = np.array(['KH', 'LA', 'VH', 'VS', 'CACE', 'CACW', 'CACN', 'MAC', 'NAC', 'NEC', 'SAC', 'MY_I', 'MM_I'])
 PVl =   np.array(['KH']*1 + ['LA']*1 + ['VH']*1 + ['VS']*1 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1)
 pv_lb_np = np.array([0.] + [0.] + [0.] + [0.] + [3.5] + [3.] + [2.3] + [0.2] + [11.] + [9.6] + [6.7]) #Thailand constraints based on 2037 capacity in PDP2024 draft
 pv_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + 7*[100000.])
-phes_lb_np = np.array([0.] + [0.] + [0.] + [0.] + 5*[0.] + [1.] + [0.]) # Lamtakong Jolabha Vadhana, Thailand (NEC), is 1000 MW
-phes_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + 7*[10000.])
-storage_lb_np = np.array(11*[0.])
-storage_ub_np = np.array(11*[50000.])
+phes_lb_np = np.array([0.] + [0.] + [0.] + [0.] + 5*[0.] + [1.] + [0.] + 2*[0.]) # Lamtakong Jolabha Vadhana in Thailand (NEC) is 1000 MW
+phes_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + 7*[10000.] + 2*[0.])
+storage_lb_np = np.array(13*[0.])
+storage_ub_np = np.array(11*[50000.] + 2*[0.])
 #Windl = np.array(['KH']*1 + ['LA']*1 + ['VH']*1 + ['VS']*1 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1)
 #wind_lb_np = np.array([0.] + [0.] + [0.] + [0.] + 7*[0.]) 
 #wind_ub_np = np.array([100000.] + [239000.] + [155000.]+ [155000.] + 7*[13000.])
@@ -119,10 +119,13 @@ if 'Grid' in node:
         # Nodel_int = Nodel_int[coverage]
         
         #Full network of all node connections
-        network = np.array([[0, 3], #KH-TH
-                            [0, 4], #KH-VS
-                            [1, 2], #LA-TH
-                            [1, 3], #LA-VH
+        network = np.array([[10, 5], #SAC-CACW 
+                            [5, 7], #CACW-MAC
+                            [7, 4], #MAC-CACE
+                            [7, 6], #MAC-CACN
+                            [6, 8], #CACN-NAC
+                            [6, 9], #CACN-NEC
+                            [8, 9], #NAC-NEC
                             ], dtype=np.int64)
 
     if 'TH_Imp' in node:
@@ -131,11 +134,19 @@ if 'Grid' in node:
         # Nodel = Nodel[coverage]
         # Nodel_int = Nodel_int[coverage]
         
+        '''LAOS AND CAMBODIA NODES MAY NEED MODIFICATION? PERHAPS JUST DEFINE NEW EXTERNAL NODES? OR REDEFINE THEIR GENERATOR LISTS?'''
         #Full network of all node connections
-        network = np.array([[0, 3], #KH-TH
-                            [0, 4], #KH-VS
-                            [1, 2], #LA-TH
-                            [1, 3], #LA-VH
+        network = np.array([[10, 5], #SAC-CACW 
+                            [5, 7], #CACW-MAC
+                            [7, 4], #MAC-CACE
+                            [7, 6], #MAC-CACN
+                            [6, 8], #CACN-NAC
+                            [6, 9], #CACN-NEC
+                            [8, 9], #NAC-NEC
+                            [10, 11], #SAC-MY_I
+                            [8, 12], #NAC-MM_I
+                            [9, 1], #NEC-LA
+                            [4, 0], #CACE-KH 
                             ], dtype=np.int64)
     
     # Find and select connections between nodes being considered
