@@ -11,7 +11,6 @@ import csv
 
 from Input import *
 from Simulation import Reliability
-#from Network import Transmission
 
 @njit(parallel=True)
 def ParallelObjectiveWrapper(xs):
