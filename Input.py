@@ -15,51 +15,52 @@ parser.add_argument('-p', default=8, type=int, required=False, help='popsize=2, 
 parser.add_argument('-m', default=0.5, type=float, required=False, help='mutation=0.5')
 parser.add_argument('-r', default=0.3, type=float, required=False, help='recombination=0.3')
 parser.add_argument('-e', default=3, type=int, required=False, help='per-capita electricity: 3, 6 and 9 MWh')
-parser.add_argument('-n', default='Super13', type=str, required=False, help='Super1, Super2, BN, KH, ...')
+parser.add_argument('-n', default='TH', type=str, required=False, help='Mekong, TH_Iso, TH_imp KH, LA, VH, VS, ...') # TH_Iso = Isolated Thailand network, TH_imp = Thailand w imports, Mekong = Mekong Power Grid
 args = parser.parse_args()
 
 percapita, node, iterations, population = (args.e, args.n, args.i, args.p)
 
-
 ###### NODAL LISTS ######
-Nodel = np.array(['KH', 'LA', 'TH', 'VH', 'VS']) #(['AW', 'AN', 'BN', 'KH', 'CN', 'IN', 'IJ', 'IK', 'IM', 'IP', 'IC', 'IS', 'IT', 'LA', 'MY', 'MM', 'PL', 'PM', 'PV', 'SG', 'TH', 'VH', 'VS'])
-PVl =   np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
-pv_lb_np = np.array([0.5] + [0.5] + [1.] + [5.] + [5.]) #Normal constraints are 3., 9.2 for TH and VH/VS, rooftop solar constraints are 1., 5. 
-pv_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + [100000.])
-#phes_lb_np = np.array([0.] + [0.] + [1500.] + [600.] + [600.])
-#phes_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + [10000.])
-Windl = np.array(['KH']*1 + ['LA']*1 + ['TH']*1 + ['VH']*1 + ['VS']*1)
-#wind_ub_np = np.array([100000.] + [13000.] + [239000.] + [155000.]+ [155000.])
-#Interl = np.array(['AW']*1 + ['AN']*1 + ['CN']*1 + ['IN']*1) if node=='Super2' else np.array([])
+Nodel = np.array(['KH', 'LA', 'VH', 'VS', 'CACE', 'CACW', 'CACN', 'MAC', 'NAC', 'NEC', 'SAC'])
+PVl =   np.array(['KH']*1 + ['LA']*1 + ['VH']*1 + ['VS']*1 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1)
+pv_lb_np = np.array([0.] + [0.] + [0.] + [0.] + [3.5] + [3.] + [2.3] + [0.2] + [11.] + [9.6] + [6.7]) #Thailand constraints based on 2037 capacity in PDP2024 draft
+pv_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + 7*[100000.])
+phes_lb_np = np.array([0.] + [0.] + [0.] + [0.] + 5*[0.] + [1.] + [0.]) # Lamtakong Jolabha Vadhana, Thailand (NEC), is 1000 MW
+phes_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + 7*[10000.])
+#Windl = np.array(['KH']*1 + ['LA']*1 + ['VH']*1 + ['VS']*1 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1)
+#wind_lb_np = np.array([0.] + [0.] + [0.] + [0.] + 7*[0.]) 
+#wind_ub_np = np.array([100000.] + [239000.] + [155000.]+ [155000.] + 7*[13000.])
+Interl = np.array(['AW']*1 + ['AN']*1 + ['CN']*1 + ['IN']*1) if node=='TH_imp' else np.array([]) ######## DEFINE THE THAI IMPORT NODES
 resolution = 1
 
 n_node = dict((name, i) for i, name in enumerate(Nodel))
-Nodel_int, PVl_int, Windl_int = (np.array([n_node[node] for node in x], dtype=np.int64) for x in (Nodel, PVl, Windl))
+#Nodel_int, PVl_int, Windl_int = (np.array([n_node[node] for node in x], dtype=np.int64) for x in (Nodel, PVl, Windl))
+Nodel_int, PVl_int = (np.array([n_node[node] for node in x], dtype=np.int64) for x in (Nodel, PVl))
 
 
 ###### DATA Imports ######
 MLoad = np.genfromtxt('Data/electricity{}.csv'.format(percapita), delimiter=',', skip_header=1) # EOLoad(t, j), MW
 TSPV = np.genfromtxt('Data/pv.csv', delimiter=',', skip_header=1) # TSPV(t, i), MW
-TSWind = np.genfromtxt('Data/wind.csv', delimiter=',', skip_header=1) # TSWind(t, i), MW
-
+#TSWind = np.genfromtxt('Data/wind.csv', delimiter=',', skip_header=1) # TSWind(t, i), MW
 
 assets = np.genfromtxt('Data/assets.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
-CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [assets[:, x] * pow(10, -3) for x in range(assets.shape[1])] # CHydro(j), MW to GW. There are the existing capacities for each tech
+CHydro = [assets[:, x] * pow(10, -3) for x in range(assets.shape[1])]
+#CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [assets[:, x] * pow(10, -3) for x in range(assets.shape[1])] # CHydro(j), MW to GW. There are the existing capacities for each tech
 constraints = np.genfromtxt('Data/constraints.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
-ECoal, EGas, EOil, EHydro, EGeo, EBio, EWaste = [constraints[:, x] for x in range(constraints.shape[1])] # GWh, constraints on generation from existing capacity are imported from constraints.csv
-CBaseload = (EGeo + EBio + EWaste) / 8760 # 0.5 * EHydro +  24/7, GW, baseload capacity for a single time interval, defined according to fraction of each existing capacity technology assigned to baseload generation. Based on annual generation constraints (GWh) divided by number of intervals in each year (this accounts for the annual capacity factor of that tech)
-
-hydroProfiles = np.genfromtxt('Data/hydro.csv', delimiter = ',', skip_header = 1, encoding = None).astype(float) #This makes the array of RoR values
-
+EHydro = np.genfromtxt('Data/constraints.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
+Hydro_monthly_CF = [0.238, 0.262, 0.253, 0.24, 0.236, 0.217, 0.174, 0.164, 0.105, 0.078, 0.111, 0.191] # January - December
+#ECoal, EGas, EOil, EHydro, EGeo, EBio, EWaste = [constraints[:, x] for x in range(constraints.shape[1])] # GWh, constraints on generation from existing capacity are imported from constraints.csv
+#CBaseload = (EGeo + EBio + EWaste) / 8760 # 0.5 * EHydro +  24/7, GW, baseload capacity for a single time interval, defined according to fraction of each existing capacity technology assigned to baseload generation. Based on annual generation constraints (GWh) divided by number of intervals in each year (this accounts for the annual capacity factor of that tech)
+#hydroProfiles = np.genfromtxt('Data/hydro.csv', delimiter = ',', skip_header = 1, encoding = None).astype(float) #This makes the array of RoR values
 #CPeak = CCoal + CGas + COil + CHydro - 0.5 * EHydro / 8760 # GW
-CPeak = CCoal + CGas + COil / 8760
+#CPeak = CCoal + CGas + COil / 8760
 
 
 ###### CONSTRAINTS ######
 # Energy constraints
 #Hydromax = EHydro.sum() * pow(10,3) # GWh to MWh per year Not need in this version
 
-inter = 0.05 if node=='Super2' else 0
+#inter = 0.05 if node=='Super2' else 0
 #CDC0max, CDC1max, CDC7max, CDC8max = 4 * [inter * MLoad.sum() / MLoad.shape[0] / 1000] # 5%: AWIJ, ANIT, CHVH, INMM, MW to GW
 DCloss = np.array([500, 200, 500, 500]) * 0.03 * pow(10, -3)#([2100, 1000, 900, 1300, 1300, 500, 200, 600, 1000, 900, 1400, 2100, 900, 600, 1000, 1000, 500, 500, 300, 1300, 700, 600, 400])
 
@@ -75,18 +76,18 @@ firstyear, finalyear, timestep = (2010, 2019, 1)
 
 ###### Scenario adjustments ######
 # Node Values
-if 'Super' not in node:
+""" if 'Super' not in node:
     MLoad = MLoad[:, np.where(Nodel==node)[0]]
     TSPV = TSPV[:, np.where(PVl==node)[0]]
-    TSWind = TSWind[:, np.where(Windl==node)[0]]
+    #TSWind = TSWind[:, np.where(Windl==node)[0]]
 
     #CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [x[np.where(Nodel == node)[0]] for x in (CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste)]#
-    CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [x[np.where(Nodel == node)[0]] for x in (CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste)]
+    #CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [x[np.where(Nodel == node)[0]] for x in (CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste)]
     #EHydro = EHydro[np.where(Nodel==node)[0]] # GWh
     #CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
-    hydroProfiles = hydroProfiles[:, np.where(Nodel==node)[0]] # GW 
-    CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
-    CPeak = CPeak[np.where(Nodel==node)[0]] # GW
+    #hydroProfiles = hydroProfiles[:, np.where(Nodel==node)[0]] # GW 
+    #CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
+    #CPeak = CPeak[np.where(Nodel==node)[0]] # GW
 
     network_mask = np.zeros(4, np.bool_)
     network = np.empty((0,0,0,0), np.int64)
@@ -100,7 +101,7 @@ if 'Super' not in node:
     pv_ub_np = pv_ub_np[np.where(PVl==node)[0]]
     PVl = PVl[np.where(PVl==node)[0]]
     Windl_int = Windl_int[np.where(Windl==node)[0]]
-    Windl = Windl[np.where(Windl==node)[0]]
+    Windl = Windl[np.where(Windl==node)[0]] """
     
 
 ###### Transmission Network ######

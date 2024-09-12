@@ -9,13 +9,9 @@ import datetime as dt
 import numpy as np
 import csv
 
-
-
 from Input import *
 from Simulation import Reliability
-from Network import Transmission
-
-
+#from Network import Transmission
 
 @njit(parallel=True)
 def ParallelObjectiveWrapper(xs):
@@ -35,11 +31,7 @@ def Objective(x):
 if __name__=='__main__':
     starttime = dt.datetime.now()
     print("Optimisation starts at", starttime)
-
-
-
     #print("Length of pv_lb:", len(pv_lb)) print("Length of pv_ub:", len(pv_ub)) print("Length of wind_ub:", len(wind_ub)) print("Length of phes_lb:", len(phes_lb)) print("Length of phes_ub:", len(phes_ub)) print("Length of contingency:", len(contingency))
-
 
     result = differential_evolution(
         func=ParallelObjectiveWrapper, 
