@@ -1,12 +1,14 @@
-Node,Code,Fraction,Coal,Gas,Oil,Hydro,Geothermal,Biomass,Waste,Nuclear
-Cambodia,KH,1,505,0,54,1329.76,0,2,25,0
-Laos,LA,1,1878,0,0,9412,0,0,0,0
-Vietnam-Hanoi,VH,0.5,7062.5,3867,457.5,10342,0,11,0,0
-Vietnam-HCMC,VS,0.5,7062.5,3867,457.5,10342,0,11,0,0
-Thailand-Central-East,CACE,1,0,0,0,460,0,0,0,0
-Thailand-Central-West,CACW,1,0,0,0,394,0,0,0,0
-Thailand-Central-North,CACN,1,0,0,0,293,0,0,0,0
-Thailand-Metropolitan,MAC,1,0,0,0,0.8,0,0,0,0
-Thailand-North,NAC,1,0,0,0,1483,0,0,0,0
-Thailand-Northeast,NEC,1,0,0,0,290,0,0,0,300
-Thailand-South,SAC,1,0,0,0,338,0,0,0,300
+Node,Code,Fraction,Hydro,Geothermal,Biomass,Waste,Nuclear
+Cambodia,KH,1,1329.76,0,2,25,0
+Laos,LA,1,9412,0,0,0,0
+Vietnam-Hanoi,VH,0.5,10342,0,11,0,0
+Vietnam-HCMC,VS,0.5,10342,0,11,0,0
+Thailand-Central-East,CACE,1,460,0,0,0,0
+Thailand-Central-West,CACW,1,394,0,0,0,0
+Thailand-Central-North,CACN,1,293,0,0,0,0
+Thailand-Metropolitan,MAC,1,0.8,0,0,0,0
+Thailand-North,NAC,1,1483,0,0,0,0
+Thailand-Northeast,NEC,1,290,0,0,0,300
+Thailand-South,SAC,1,338,0,0,0,300
+Malaysia (Imports),MY_I,1,0,0,0,0,0
+Myanmar (Imports),MM_I,1,0,0,0,0,0

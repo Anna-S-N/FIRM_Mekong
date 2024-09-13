@@ -10,7 +10,7 @@ import numpy as np
 import csv
 
 from Input import *
-from Simulation import Reliability
+#from Simulation import Reliability
 
 @njit(parallel=True)
 def ParallelObjectiveWrapper(xs):
@@ -26,12 +26,22 @@ def Objective(x):
     S._evaluate()
     return S.Lcoe + S.Penalties
 
-
 if __name__=='__main__':
     starttime = dt.datetime.now()
     print("Optimisation starts at", starttime)
-    #print("Length of pv_lb:", len(pv_lb)) print("Length of pv_ub:", len(pv_ub)) print("Length of wind_ub:", len(wind_ub)) print("Length of phes_lb:", len(phes_lb)) print("Length of phes_ub:", len(phes_ub)) print("Length of contingency:", len(contingency))
-
+    print("Length of pv_lb:", len(pv_lb)) 
+    print("Length of pv_ub:", len(pv_ub)) 
+    print("Length of wind_ub:", len(wind_ub)) 
+    print("Length of phes_lb:", len(phes_lb)) 
+    print("Length of phes_ub:", len(phes_ub)) 
+    print("Length of storage_lb:", len(storage_lb)) 
+    print("Length of storage_ub:", len(storage_ub)) 
+    print("Length of inters_lb:", len(inters_lb)) 
+    print("Length of inters_ub:", len(inters_ub)) 
+    print("Length of transmission_lb:", len(transmission_lb)) 
+    print("Length of transmission_ub:", len(transmission_ub))
+    print(lb)
+    print(ub)
     result = differential_evolution(
         func=ParallelObjectiveWrapper, 
         bounds=list(zip(lb, ub)), 
@@ -54,5 +64,5 @@ if __name__=='__main__':
     endtime = dt.datetime.now()
     print("Optimisation took", endtime - starttime)
 
-    from Dispatch import Analysis
-    Analysis(result.x)
+    #from Dispatch import Analysis
+    #Analysis(result.x)

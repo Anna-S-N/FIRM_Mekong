@@ -87,7 +87,7 @@ def Reliability(solution, flexible, start=None, end=None):
 
             Transmissiont = hvdc(Fillt, Surplust, Hcapacity, network, networksteps,
                                  np.maximum(0, Transmissiont), np.minimum(0, Transmissiont))
-            
+            #print(Netload[t])
             Netloadt = Netload[t] - Transmissiont.sum(axis=0)
             Charget = np.minimum(np.minimum(-1 * np.minimum(0, Netloadt), Pcapacity), (Scapacity - Storaget_1) / efficiency / resolution)
             Discharget = np.minimum(np.minimum(np.maximum(0, Netloadt), Pcapacity), Storaget_1 / resolution)
@@ -123,6 +123,9 @@ def hvdc(Fillt, Surplust, Hcapacity, network, networksteps, Importt, Exportt):
     #   nthary connection
     # Since many if not most calls of this function only require primary transmission
     #   I have split it out from general nthary transmission to improve speed
+    if network.size == 0:
+        return Importt+Exportt
+
     for n in np.where(Fillt>0)[0]:
         pdonors = network[:, n, 0, :]
         valid_mask = pdonors[0] != -1

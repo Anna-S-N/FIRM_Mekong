@@ -16,9 +16,10 @@ parser.add_argument('-m', default=0.5, type=float, required=False, help='mutatio
 parser.add_argument('-r', default=0.3, type=float, required=False, help='recombination=0.3')
 parser.add_argument('-e', default=3, type=int, required=False, help='per-capita electricity: 3, 10, 12 and 20 MWh')
 parser.add_argument('-n', default='TH_Iso_Grid', type=str, required=False, help='Mekong_Grid, TH_Iso_Grid, TH_Imp_Grid, KH, LA, VH, VS, ...') # TH_Iso = Isolated Thailand network, TH_imp = Thailand w imports, Mekong = Mekong Power Grid
+parser.add_argument('-s', default='nuclear', type=str, required=False, help='nuclear, no_nuclear')
 args = parser.parse_args()
 
-percapita, node, iterations, population = (args.e, args.n, args.i, args.p)
+percapita, node, iterations, population, nuclear_scenario = (args.e, args.n, args.i, args.p, args.s)
 
 ###### NODAL LISTS ######
 Nodel = np.array(['KH', 'LA', 'VH', 'VS', 'CACE', 'CACW', 'CACN', 'MAC', 'NAC', 'NEC', 'SAC', 'MY_I', 'MM_I'])
@@ -29,45 +30,44 @@ phes_lb_np = np.array([0.] + [0.] + [0.] + [0.] + 5*[0.] + [1.] + [0.] + 2*[0.])
 phes_ub_np = np.array([100000.] + [100000.] + [100000.] + [100000.] + 7*[10000.] + 2*[0.])
 storage_lb_np = np.array(13*[0.])
 storage_ub_np = np.array(11*[50000.] + 2*[0.])
-#Windl = np.array(['KH']*1 + ['LA']*1 + ['VH']*1 + ['VS']*1 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1)
-#wind_lb_np = np.array([0.] + [0.] + [0.] + [0.] + 7*[0.]) 
-#wind_ub_np = np.array([100000.] + [239000.] + [155000.]+ [155000.] + 7*[13000.])
-Interl = np.array(['AW']*1 + ['AN']*1 + ['CN']*1 + ['IN']*1) if node=='TH_Imp_Grid' else np.array([]) ######## DEFINE THE THAI IMPORT NODES
+Windl = np.array(['KH']*1 + ['LA']*1 + ['VH']*1 + ['VS']*1 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1)
+wind_lb_np = np.array([0.] + [0.] + [0.] + [0.] + 7*[0.]) 
+wind_ub_np = np.array([100000.] + [239000.] + [155000.]+ [155000.] + 7*[13000.])
+Interl = np.array(['KH']*1 + ['LA']*1 + ['MY_I']*1 + ['MM_I']*1) if node=='TH_Imp_Grid' else np.array([])
 resolution = 1
 
 n_node = dict((name, i) for i, name in enumerate(Nodel))
-#Nodel_int, PVl_int, Windl_int = (np.array([n_node[node] for node in x], dtype=np.int64) for x in (Nodel, PVl, Windl))
-Nodel_int, PVl_int = (np.array([n_node[node] for node in x], dtype=np.int64) for x in (Nodel, PVl))
+Nodel_int, PVl_int, Windl_int = (np.array([n_node[node] for node in x], dtype=np.int64) for x in (Nodel, PVl, Windl))
 
 
 ###### DATA Imports ######
 MLoad = np.genfromtxt('Data/electricity{}.csv'.format(percapita), delimiter=',', skip_header=1) # EOLoad(t, j), MW
 TSPV = np.genfromtxt('Data/pv.csv', delimiter=',', skip_header=1) # TSPV(t, i), MW
-#TSWind = np.genfromtxt('Data/wind.csv', delimiter=',', skip_header=1) # TSWind(t, i), MW
+TSWind = np.genfromtxt('Data/wind.csv', delimiter=',', skip_header=1) # TSWind(t, i), MW
 
-assets = np.genfromtxt('Data/assets.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
-CHydro, CNuclear = [assets[:, x] * pow(10, -3) for x in range(assets.shape[1])]
-#CCoal, CGas, COil, CHydro, CGeo, CBio, CWaste = [assets[:, x] * pow(10, -3) for x in range(assets.shape[1])] # CHydro(j), MW to GW. There are the existing capacities for each tech
-constraints = np.genfromtxt('Data/constraints.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
-EHydro = np.genfromtxt('Data/constraints.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
-Hydro_monthly_CF = [0.238, 0.262, 0.253, 0.24, 0.236, 0.217, 0.174, 0.164, 0.105, 0.078, 0.111, 0.191] # January - December
-CBaseload = CNuclear
-#ECoal, EGas, EOil, EHydro, EGeo, EBio, EWaste = [constraints[:, x] for x in range(constraints.shape[1])] # GWh, constraints on generation from existing capacity are imported from constraints.csv
-#CBaseload = (EGeo + EBio + EWaste) / 8760 # 0.5 * EHydro +  24/7, GW, baseload capacity for a single time interval, defined according to fraction of each existing capacity technology assigned to baseload generation. Based on annual generation constraints (GWh) divided by number of intervals in each year (this accounts for the annual capacity factor of that tech)
-#hydroProfiles = np.genfromtxt('Data/hydro.csv', delimiter = ',', skip_header = 1, encoding = None).astype(float) #This makes the array of RoR values
-#CPeak = CCoal + CGas + COil + CHydro - 0.5 * EHydro / 8760 # GW
-CPeak = CHydro
+factor = np.genfromtxt('Data/factor.csv', delimiter=',', usecols=1)
+factor_trans = np.genfromtxt('Data/factor_trans.csv', delimiter=',', usecols=1)
 
+if nuclear_scenario == 'nuclear':
+    assets = np.genfromtxt('Data/assets_nuclear.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
+else:
+    assets = np.genfromtxt('Data/assets.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
+
+CHydro, CGeo, CBio, CWaste, CNuclear = [assets[:, x] * pow(10, -3) for x in range(assets.shape[1])]
+#constraints = np.genfromtxt('Data/constraints.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
+#print(constraints)
+#EHydro, EGeo, EBio, EWaste, ENuclear = np.genfromtxt('Data/constraints.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
+CBaseload = CNuclear + CGeo
+CPeak = CHydro + CBio + CWaste
 
 ###### CONSTRAINTS ######
 # Energy constraints
-'''WEEKLY HYDRO CONSTRAINTS'''
-#Hydromax = EHydro.sum() * pow(10,3) # GWh to MWh per year Not need in this version
+hydro_weekly_cf = np.genfromtxt('Data/hydro.csv', delimiter=',', skip_header=1)
+hydromax_weeks = CHydro * hydro_weekly_cf[::7, :] *7*24/1000 # Weekly energy that can be generated by the hydro, GWh/week
 
-#inter = 0.05 if node=='Super2' else 0
-#CDC0max, CDC1max, CDC7max, CDC8max = 4 * [inter * MLoad.sum() / MLoad.shape[0] / 1000] # 5%: AWIJ, ANIT, CHVH, INMM, MW to GW
 '''DEFINE TRANSMISSION INTERCONNECTIONS AND LOSSES'''
-DCloss = np.array([500, 200, 500, 500]) * 0.03 * pow(10, -3)#([2100, 1000, 900, 1300, 1300, 500, 200, 600, 1000, 900, 1400, 2100, 900, 600, 1000, 1000, 500, 500, 300, 1300, 700, 600, 400])
+#Interconnection Order: SAC-CACW, CACW-MAC, MAC-CACE, MAC-CACN, CACN-NAC, CACN-NEC, NAC-NEC, SAC-MY_I, NAC-MM_I, NEC-LA, CACE-KH 
+DCloss = np.array([500, 200, 500, 500, 500, 200, 500, 500, 500, 200, 500]) * 0.07 * pow(10, -3)#([500, 200, 500, 500])
 
 ###### Simulation Period ######
 firstyear, finalyear, timestep = (2010, 2019, 1)
@@ -77,29 +77,46 @@ firstyear, finalyear, timestep = (2010, 2019, 1)
 if 'Grid' not in node:
     MLoad = MLoad[:, np.where(Nodel==node)[0]]
     TSPV = TSPV[:, np.where(PVl==node)[0]]
-    #TSWind = TSWind[:, np.where(Windl==node)[0]]
+    TSWind = TSWind[:, np.where(Windl==node)[0]]
 
     CHydro = CHydro[np.where(Nodel==node)[0]]
-    EHydro = EHydro[np.where(Nodel==node)[0]] # GWh
-    CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
+    #EHydro = EHydro[np.where(Nodel==node)[0]] # GWh
+    #EBio = EBio[np.where(Nodel==node)[0]] # GWh
+    #EWaste = EWaste[np.where(Nodel==node)[0]] # GWh
     CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
     CPeak = CPeak[np.where(Nodel==node)[0]] # GW
 
-    network_mask = np.zeros(4, np.bool_)
+    hydromax_weeks = hydromax_weeks[np.where(Nodel==node)[0]] # GW
+    #Hydromax = (EHydro.sum() + EBio.sum() + EWaste.sum())* pow(10,3) # GWh to MWh per year Not need in this version
+
+    network_mask = np.zeros(len(DCloss), np.bool_)
     network = np.empty((0,0,0,0), np.int64)
+    ###############
+    trans_tdc_mask = np.zeros((MLoad.shape[1], len(network)), np.bool_)
+    for line, row in enumerate(network):
+        trans_tdc_mask[row[0], line] = True
+    ##############
     directconns=np.empty((0,0), np.int64)    
+
+    pv_lb_np = pv_lb_np[np.where(PVl==node)[0]]
+    pv_ub_np = pv_ub_np[np.where(PVl==node)[0]]
+    phes_lb_np = phes_lb_np[np.where(Nodel==node)[0]]
+    phes_ub_np = phes_ub_np[np.where(Nodel==node)[0]]
+    storage_lb_np = storage_lb_np[np.where(Nodel==node)[0]]
+    storage_ub_np = storage_ub_np[np.where(Nodel==node)[0]]
+    wind_lb_np = wind_lb_np[np.where(Windl==node)[0]]
+    wind_ub_np = wind_ub_np[np.where(Windl==node)[0]]
     
     Nodel_int = Nodel_int[np.where(Nodel==node)[0]]
     Nodel = Nodel[np.where(Nodel==node)[0]]
     PVl_int = PVl_int[np.where(PVl==node)[0]]
-    pv_lb_np = pv_lb_np[np.where(PVl==node)[0]]
-    pv_ub_np = pv_ub_np[np.where(PVl==node)[0]]
     PVl = PVl[np.where(PVl==node)[0]]
-    #Windl_int = Windl_int[np.where(Windl==node)[0]]
-    #Windl = Windl[np.where(Windl==node)[0]] 
+    Windl_int = Windl_int[np.where(Windl==node)[0]]
+    Windl = Windl[np.where(Windl==node)[0]] 
 
 ###### Transmission Network ######
 if 'Grid' in node: 
+    coverage = []
     if 'Mekong' in node:
         # # coverage to be fixed
         # coverage = np.where(Nodel==node)[0]
@@ -113,10 +130,7 @@ if 'Grid' in node:
                             [1, 3], #LA-VH
                             ], dtype=np.int64)
     if 'TH_Iso' in node:
-        # # coverage to be fixed
-        # coverage = np.where(Nodel==node)[0]
-        # Nodel = Nodel[coverage]
-        # Nodel_int = Nodel_int[coverage]
+        coverage = np.array(['CACE', 'CACW', 'CACN', 'MAC', 'NAC', 'NEC', 'SAC'])
         
         #Full network of all node connections
         network = np.array([[10, 5], #SAC-CACW 
@@ -126,11 +140,14 @@ if 'Grid' in node:
                             [6, 8], #CACN-NAC
                             [6, 9], #CACN-NEC
                             [8, 9], #NAC-NEC
+                            [10, 11], #SAC-MY_I
+                            [8, 12], #NAC-MM_I
+                            [9, 1], #NEC-LA
+                            [4, 0], #CACE-KH 
                             ], dtype=np.int64)
 
     if 'TH_Imp' in node:
-        # # coverage to be fixed
-        # coverage = np.where(Nodel==node)[0]
+        #coverage = np.array(['CACE', 'CACW', 'CACN', 'MAC', 'NAC', 'NEC', 'SAC'])
         # Nodel = Nodel[coverage]
         # Nodel_int = Nodel_int[coverage]
         
@@ -149,6 +166,28 @@ if 'Grid' in node:
                             [4, 0], #CACE-KH 
                             ], dtype=np.int64)
     
+    ####### APPLY COVERAGE TO THE INPUTS ###########
+        
+    MLoad = MLoad[:, np.where(np.in1d(Nodel, coverage)==True)[0]]
+    TSPV = TSPV[:, np.where(np.in1d(PVl, coverage)==True)[0]]
+    TSWind = TSWind[:, np.where(np.in1d(Windl, coverage)==True)[0]]
+
+    CHydro, CBaseload, CPeak = [x[np.where(np.in1d(Nodel, coverage)==True)[0]] for x in (CHydro, CBaseload, CPeak)]
+
+    hydromax_weeks = hydromax_weeks[:, np.where(np.in1d(Nodel, coverage)==True)[0]]
+
+    pv_lb_np, pv_ub_np = [x[np.where(np.in1d(PVl, coverage)==True)[0]] for x in (pv_lb_np, pv_ub_np)]
+    wind_lb_np, wind_ub_np = [x[np.where(np.in1d(Windl, coverage)==True)[0]] for x in (wind_lb_np, wind_ub_np)]
+    phes_lb_np, phes_ub_np = [x[np.where(np.in1d(Nodel, coverage)==True)[0]] for x in (phes_lb_np, phes_ub_np)]
+    storage_lb_np, storage_ub_np = [x[np.where(np.in1d(Nodel, coverage)==True)[0]] for x in (storage_lb_np, storage_ub_np)]
+
+    Nodel_int = Nodel_int[np.where(np.in1d(Nodel, coverage)==True)[0]]
+    PVl_int = PVl_int[np.where(np.in1d(PVl, coverage)==True)[0]]
+    Windl_int = Windl_int[np.where(np.in1d(Windl, coverage)==True)[0]]
+    Nodel, PVl, Windl = [x[np.where(np.in1d(x, coverage)==True)[0]] for x in (Nodel, PVl, Windl)]
+
+    ########## BUILD TRANSMISSION NETWORK VARIABLES ###############
+        
     # Find and select connections between nodes being considered
     network_mask = np.array([(network==j).sum(axis=1).astype(np.bool_) for j in Nodel_int]).sum(axis=0)==2
     network = network[network_mask,:]
@@ -272,52 +311,76 @@ pzones, wzones = (TSPV.shape[1], TSWind.shape[1]) # Number of solar and wind sit
 pidx, widx = (pzones, pzones + wzones) # Integers that define the final index of solar, wind, phes, etc. sites within the decision variable list
 spidx, seidx = pzones + wzones + nodes, pzones + wzones + nodes + nodes
 inters = len(Interl) # The number of external interconnections
-'''FIX THIS INDEX'''
-#iidx = sidx + 1 + inters
+iidx = seidx + inters
 
 energy = MLoad.sum() * pow(10, -9) * resolution / years # PWh p.a.
-contingency = list(0.25 * MLoad.max(axis=0) * 0.001) # MW to GW
+#contingency = list(0.25 * MLoad.max(axis=0) * 0.001) # MW to GW
+#contingency = nodes*[0]
 
 GBaseload = np.tile(CBaseload, (intervals, 1)) * 1000 # GW to MW, excluding hydro
-GHydro = hydroProfiles
+#GHydro = hydroProfiles
 
 ###### Network Constraints
 #manage = 0 # weeks
 #allowance = MLoad.sum(axis=1).max() * 0.05 * manage * 168 * efficiency # MWh
-allowance = min(0.000_02*np.reshape(MLoad.sum(axis=1), (-1,8760)).sum(axis=-1)) # Allowable annual deficit of 0.002%, MWh
+allowance = min(0.00002*np.reshape(MLoad.sum(axis=1), (-1,8760)).sum(axis=-1)) # Allowable annual deficit of 0.002%, MWh
+efficiency = 0.8 #80% round-trip efficiency PHES
 
 ###### DECISION VARIABLE UPPER AND LOWER BOUNDS ######
+#factor_trans = factor_trans[network_mask]
+CDCmax = 300.*np.ones_like(DCloss[network_mask])
+
 pv_lb = list(pv_lb_np)
 pv_ub = list(pv_ub_np)
-#wind_lb = list(wind_lb_np)
-#wind_ub = list(wind_ub_np)
+wind_lb = list(wind_lb_np)
+wind_ub = list(wind_ub_np)
 phes_lb = list(phes_lb_np)
 phes_ub = list(phes_ub_np)
 storage_lb = list(storage_lb_np)
 storage_ub = list(storage_ub_np)
+inters_lb = [0.]*inters 
+inters_ub = [1000.]*inters
+transmission_lb = [0.] * network_mask.sum()
+transmission_ub = list(CDCmax)
 
-'''WHAT IS THIS BEING USED FOR????'''
-CDCmax = 100.*np.ones_like(DCloss)
-
-#lb = pv_lb + [0.]    * wzones + phes_lb + contingency + [0.] # 
-#lb = [0.]     * pzones + [0.]    * wzones + contingency      + [0.]      #+ [0.]    * inters (previous lb)
-'''ADD WIND TO THE BOUNDS'''
 '''Add INTERCONNECTION IMPORT BOUNDS'''
-lb = np.array(pv_lb + phes_lb + storage_lb     + [0.] * network_mask.sum())
-#ub = pv_ub + wind_ub + phes_ub + [10000.] * nodes + [100000.] #
-#ub = [10000.] * pzones + [300.]  * wzones + [10000.] * nodes + [100000.] #+ [1000.] * inters
-ub = np.array(pv_ub + phes_ub + storage_ub + list(CDCmax[network_mask]))
+lb = np.array(pv_lb + wind_lb + phes_lb + storage_lb + inters_lb + transmission_lb)
+ub = np.array(pv_ub + wind_ub + phes_ub + storage_ub + inters_ub + transmission_ub)
 
 from Simulation import Reliability
+
+# Reshape is not compatible with JIT, so need below function for hydromax constraints
+@njit()
+def weekly_sum(original_array):
+    num_rows, num_cols = original_array.shape
+    new_num_rows = num_rows // 7 + 1
+    new_array = np.zeros((new_num_rows, num_cols))
+    
+    for i in range(new_num_rows):
+        if i == new_num_rows - 1:
+            for j in range(2):
+                for k in range(num_cols):
+                    new_array[i, k] += original_array[i * 7 + j, k]
+        else:
+            for j in range(7):
+                for k in range(num_cols):
+                    new_array[i, k] += original_array[i * 7 + j, k]
+    
+    return new_array
 
 @njit()
 def F(S):
     Deficit = Reliability(S, flexible=np.zeros((intervals, nodes) , dtype=np.float64)) # Sj-EDE(t, j), MW
     Flexible = Deficit.sum() * resolution / years / (0.5 * (1 + efficiency)) # MWh p.a.
-    Hydro = resolution * GHydro.sum() / years #min(0.5 * EHydro.sum() * pow(10, 3), Flexible) # GWh to MWh, MWh p.a.
-    Fossil = Flexible# - Hydro # Fossil fuels: MWh p.a.
-    Hydro += resolution * GBaseload.sum() / years # Hydropower & other renewables: MWh p.a.
-    PenHydro = 0
+    #Hydro = resolution * GHydro.sum() / years #min(0.5 * EHydro.sum() * pow(10, 3), Flexible) # GWh to MWh, MWh p.a.
+    #Fossil = Flexible# - Hydro # Fossil fuels: MWh p.a.
+    #Hydro += resolution * GBaseload.sum() / years # Hydropower & other renewables: MWh p.a.
+    GHydro = np.clip(Deficit, 0, CHydro.sum() * pow(10, 3)) # MWh
+    Hydro_Weekly = weekly_sum(GHydro)
+    PenHydro = np.sum(np.minimum(hydromax_weeks - Hydro_Weekly, 0)) 
+    PenHydro = PenHydro*PenHydro*1000000 # Create positive, large penalty number
+
+    '''TREAT INTERCONNECTIONS AS FLEXIBLE'''
 
     Deficit = Reliability(S, flexible=np.ones((intervals, nodes), dtype=np.float64)*CPeak*1000) # Sj-EDE(t, j), GW to MW
     PenDeficit = np.maximum(0, Deficit.sum() * resolution) # MWh
@@ -325,10 +388,10 @@ def F(S):
     CHVDC = np.zeros(len(network_mask), dtype=np.float64)
     CHVDC[network_mask] = S.CHVDC
 
-    _c = -1.0 if 'Grid' not in node else -1.0 # unclear if rules here have changed since previous versions of FIRM
-    cost = (factor * np.array([S.CPV.sum(), S.CWind.sum(), 0, S.CPHP.sum(), S.CPHS.sum()] + list(CHVDC) +
-                               [S.CPV.sum(), S.CWind.sum(), Hydro * 0.000_001, Fossil*0.000_001, _c, _c])
-            ).sum()
+    #_c = -1.0 if 'Grid' not in node else -1.0 # unclear if rules here have changed since previous versions of FIRM
+    cost = (factor * np.array([S.CPV.sum(), S.CWind.sum(), 0, S.CPHP.sum(), S.CPHS.sum()] + 
+                               [S.CPV.sum(), S.CWind.sum(), Flexible * 0.000_001, GBaseload.sum() * 0.000_001, 0, 0])
+            ).sum() + (factor_trans * np.array(list(CHVDC))).sum()    
 
     loss = np.zeros(len(network_mask), dtype=np.float64)
     loss[network_mask] = S.TDC.sum(axis=0) * DCloss[network_mask]
@@ -345,12 +408,13 @@ solution_spec = [
     ('resolution',float64), # plain float
     ('allowance',float64),
     ('CPV', float64[:]), 
-    #('CWind', float64[:]), 
+    ('CWind', float64[:]), 
+    ('CInter', float64[:]),
     ('CPHP', float64[:]),
     ('CPHS', float64[:]),
     ('CHVDC', float64[:]),
     ('GPV', float64[:, :]), 
-    #('GWind', float64[:, :]),  
+    ('GWind', float64[:, :]),  
     ('CHVDC', float64[:]),
     ('efficiency', float64),
     ('Nodel_int', int64[:]), 
@@ -416,37 +480,41 @@ class Solution:
         self.MLoad = MLoad
 
         self.CPV = x[: pidx]  # CPV(i), GW
-        #self.CWind = x[pidx: widx]  # CWind(i), GW
+        self.CWind = x[pidx: widx]  # CWind(i), GW
+        self.CInter = x[seidx:iidx]
         
         # Manually replicating np.tile functionality for CPV and CWind
         CPV_tiled = np.zeros((intervals, len(self.CPV)))
-        #CWind_tiled = np.zeros((intervals, len(self.CWind)))
+        CWind_tiled = np.zeros((intervals, len(self.CWind)))
         CInter_tiled = np.zeros((intervals, len(self.CInter)))
         for i in range(intervals):
             for j in range(len(self.CPV)):
                 CPV_tiled[i, j] = self.CPV[j]
             for j in range(len(self.CInter)):
                 CInter_tiled[i, j] = self.CInter[j]
-            #for j in range(len(self.CWind)):
-            #    CWind_tiled[i, j] = self.CWind[j]
+            for j in range(len(self.CWind)):
+                CWind_tiled[i, j] = self.CWind[j]
 
         GPV = TSPV * CPV_tiled * 1000.  # GPV(i, t), GW to MW
-        #GWind = TSWind * CWind_tiled * 1000.  # GWind(i, t), GW to MW
+        GWind = TSWind * CWind_tiled * 1000.  # GWind(i, t), GW to MW
 
-        #self.GPV, self.GWind = np.empty((intervals, nodes), np.float64), np.empty((intervals, nodes), np.float64)
-        self.GPV = np.empty((intervals, nodes), np.float64)
+        self.GPV, self.GWind = np.empty((intervals, nodes), np.float64), np.empty((intervals, nodes), np.float64)
+        #self.GPV = np.empty((intervals, nodes), np.float64)
         for i, j in enumerate(Nodel_int):
             self.GPV[:,i] = GPV[:, PVl_int==j].sum(axis=1)
-            #self.GWind[:,i] = GWind[:, Windl_int==j].sum(axis=1) 
+            self.GWind[:,i] = GWind[:, Windl_int==j].sum(axis=1) 
         
         self.CPHP = x[widx: spidx]  # CPHP(j), GW
         self.CPHS = x[spidx: seidx]  # S-CPHS(j), GWh
-        self.CHVDC = x[seidx:]
+        self.CHVDC = x[iidx:]
         
         self.efficiency = efficiency
 
-        self.GHydro, self.GBaseload, self.CPeak = (GHydro, GBaseload, CPeak) #Will need to make a change here? 
-        self.CHydro, self.EHydro = (CHydro, EHydro) # GW, GWh 
+        #self.GHydro, self.GBaseload, self.CPeak = (GHydro, GBaseload, CPeak) #Will need to make a change here? 
+        self.GBaseload = GBaseload # GWh
+        self.CPeak = CPeak # GW
+        self.CHydro = CHydro # GW
+        #self.EHydro = EHydro # GWh 
         
         self.allowance = allowance
         

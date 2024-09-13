@@ -1,5 +1,0 @@
-# Annual demand (TWh),Annual Energy Losses (TWh),PV Capacity (GW),PV Avg Annual Gen (GWh),Wind Capacity (GW),Wind Avg Annual Gen (GWh),Hydro Capacity (GW),Hydro Avg Annual Gen (GWh),Fossil Capacity (GW),Fossil Generation (GWh),PHES-PowerCap (GW),PHES-EnergyCap (GWh),CapDCO,CapDCS,CapAC,LCOE,LCOG,LCOB,LCOG_PV,LCOG_Wind,LCOG_Hydro,LCOGFossil,LCOBS_PHES,LCOBT,LCOB_LossesSpillage,filename
-653,4.7,7.7,11.3,176.3,659.2,14.2,66.9,59.4,73.0,24.7,325.4,68.7,0,35.3,51.8,31.8,19.9,40.5,22.3,50.0,100.0,3.0,9.0,8.0,GGTA_Super13_3_450_8.csv
-653,4.7,7.7,11.3,176.3,659.3,35.4,100.2,59.4,39.7,24.7,325.8,68.7,0,35.3,49.2,29.8,19.4,40.5,22.3,50.0,100.0,3.0,9.0,7.4,GGTA_Super13_3_600_8.csv
-1306,10.7,107.3,154.1,351.1,1313.2,35.4,87.0,59.4,74.0,76.4,1359.7,145.8,0,71.3,51.3,29.1,22.2,41.4,22.3,50.0,100.0,5.4,9.3,7.5,GGTA_Super13_6_325_8.csv
-1306,11.3,206.6,292.7,322.7,1207.8,14.2,58.6,59.4,61.0,103.2,2523.7,141.9,0,66.6,55.0,29.8,25.2,42.0,22.3,50.0,100.0,8.8,8.9,7.5,GGTA_Super13_6_350_8.csv
