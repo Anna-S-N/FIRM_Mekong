@@ -473,7 +473,9 @@ def weekly_sum(original_array):
 
 @njit()
 def F(S):
-    CInter = np.nan_to_num(np.array(S.CInter))
+    CInter = np.zeros(len(S.CInter))
+    for i in range(len(S.CInter)):
+        CInter[i] = S.CInter[i]
 
     # Simulation with baseload
     Deficit1 = Reliability(S, flexible=np.zeros((intervals, nodes) , dtype=np.float64)) # Sj-EDE(t, j), MW
