@@ -9,6 +9,8 @@ from argparse import ArgumentParser
 from numba import njit, float64, int64, boolean
 from numba.experimental import jitclass
 
+from Costs import UnitCosts, calculate_costs
+
 parser = ArgumentParser()
 parser.add_argument('-i', default=2000, type=int, required=False, help='maxiter=4000, 400')
 parser.add_argument('-p', default=10, type=int, required=False, help='popsize=2, 10')
@@ -151,7 +153,6 @@ if 'Grid' not in node:
     network_mask = np.zeros(len(DCloss), np.bool_)
     network = np.empty((0,0,0,0), np.int64)
     ###############
-    print(MLoad)
     trans_tdc_mask = np.zeros((MLoad.shape[1], len(network)), np.bool_)
     for line, row in enumerate(network):
         trans_tdc_mask[row[0], line] = True
@@ -417,8 +418,9 @@ years = int(resolution * intervals / 8760)
 pzones, wzones = (TSPV.shape[1], TSWind.shape[1]) # Number of solar and wind sites
 pidx, widx = (pzones, pzones + wzones) # Integers that define the final index of solar, wind, phes, etc. sites within the decision variable list
 spidx, seidx = pzones + wzones + nodes, pzones + wzones + nodes + nodes
+bpidx, bhidx = seidx + nodes, seidx + nodes + nodes
 inters = len(Interl) # The number of external interconnections
-iidx = seidx + inters
+iidx = bhidx + inters
 
 energy = MLoad.sum() * pow(10, -9) * resolution / years # PWh p.a.
 
@@ -439,16 +441,20 @@ phes_lb = list(phes_lb_np)
 phes_ub = list(phes_ub_np)
 storage_lb = list(storage_lb_np)
 storage_ub = list(storage_ub_np)
+battery_lb = list([0.]*nodes)
+battery_ub = list([100.]*nodes)
+bduration_lb = list([0.]*nodes)
+bduration_ub = list([24.]*nodes)
 inters_lb = list(inters_lb_np)
 inters_ub = list(inters_ub_np)
 transmission_lb = [0.] * network_mask.sum()
 transmission_ub = list(CDCmax)
 
-print(pv_lb, wind_lb, phes_lb, storage_lb, inters_lb, transmission_lb)
-print(pv_ub, wind_ub, phes_ub, storage_ub, inters_ub, transmission_ub)
+print(pv_lb, wind_lb, phes_lb, storage_lb, battery_lb, bduration_lb, inters_lb, transmission_lb)
+print(pv_ub, wind_ub, phes_ub, storage_ub, battery_ub, bduration_ub, inters_ub, transmission_ub)
 
-lb = np.array(pv_lb + wind_lb + phes_lb + storage_lb + inters_lb + transmission_lb)
-ub = np.array(pv_ub + wind_ub + phes_ub + storage_ub + inters_ub + transmission_ub)
+lb = np.array(pv_lb + wind_lb + phes_lb + storage_lb + battery_lb + bduration_lb + inters_lb + transmission_lb)
+ub = np.array(pv_ub + wind_ub + phes_ub + storage_ub + battery_ub + bduration_ub + inters_ub + transmission_ub)
 
 from Simulation import Reliability
 
@@ -620,15 +626,18 @@ class Solution:
         
         self.CPHP = x[widx: spidx]  # CPHP(j), GW
         self.CPHS = x[spidx: seidx]  # S-CPHS(j), GWh
+        self.CBP
+        self.CBH
+        self.CBS 
         self.CHVDC = x[iidx:]
         
         self.efficiency = efficiency
 
-        #self.GHydro, self.GBaseload, self.CPeak = (GHydro, GBaseload, CPeak) #Will need to make a change here? 
         self.GBaseload = GBaseload # GWh
         self.CPeak = CPeak # GW
         self.CHydro = CHydro # GW
-        #self.EHydro = EHydro # GWh 
+        
+        self.UnitCosts = UnitCosts
         
         self.allowance = allowance
         
