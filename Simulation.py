@@ -8,7 +8,7 @@ Created on Wed May  8 14:53:22 2024
 import numpy as np
 from numba import njit
 
-perfect = np.array([0,1,3,6,10,15,21])
+perfect = np.array([0,1,3,6,10,15,21,28,36])
 
 
 @njit
