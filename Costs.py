@@ -58,7 +58,7 @@ DR = 0.05 # real discount rate: WACC between 5-6% in ASEAN countries currently h
 UnitCosts = np.array([pv_capex,pv_fom,pv_vom,pv_lifetime,wind_capex,wind_fom,wind_vom,wind_lifetime,transmission_capex,transmission_fom,transmission_vom,transmission_lifetime,
                        storage_capexP,stoarge_capexE,storage_fom,storage_vom,storage_replace,replace,storage_lifetime,battery_capexP,battery_capexE,battery_fom,battery_lifetime,
                        hydro_purchase,submarine_capex,submarine_fom,submarine_vom,submarine_lifetime,converter_capex,converter_fom,converter_vom,converter_lifetime,
-                       import_purchase,nuclear_purchase,DR])
+                       import_purchase,nuclear_purchase,DR], dtype=np.float64)
 
 @njit()
 def annulization(capex, fom, vom, life, dr, p, e):
@@ -123,3 +123,4 @@ def calculate_costs(S, GDischarge, GHydro, GImports, GBaseload):
     tech_costs = np.array([PV_costs, wind_costs, transmission_costs, phes_costs, battery_costs, hydro_costs, import_costs, baseload_costs], dtype=np.float64)
 
     return costs, tech_costs
+    #return costs

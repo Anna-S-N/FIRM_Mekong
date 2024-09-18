@@ -67,5 +67,5 @@ if __name__=='__main__':
     endtime = dt.datetime.now()
     print("Optimisation took", endtime - starttime)
 
-    from Fill import Flexible
-    Flexible(result.x)
+    #from Fill import Flexible
+    #Flexible(result.x)

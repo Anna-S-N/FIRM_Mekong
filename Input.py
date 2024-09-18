@@ -12,11 +12,11 @@ from numba.experimental import jitclass
 from Costs import UnitCosts, calculate_costs
 
 parser = ArgumentParser()
-parser.add_argument('-i', default=2000, type=int, required=False, help='maxiter=4000, 400')
-parser.add_argument('-p', default=10, type=int, required=False, help='popsize=2, 10')
+parser.add_argument('-i', default=1000, type=int, required=False, help='maxiter=4000, 400')
+parser.add_argument('-p', default=5, type=int, required=False, help='popsize=2, 10')
 parser.add_argument('-m', default=0.5, type=float, required=False, help='mutation=0.5')
 parser.add_argument('-r', default=0.3, type=float, required=False, help='recombination=0.3')
-parser.add_argument('-e', default=3, type=int, required=False, help='per-capita electricity: 3, 10, 12 and 20 MWh')
+parser.add_argument('-e', default=3, type=int, required=False, help='per-capita electricity: 3, 10, 20, and 99 (PDP projections) MWh')
 parser.add_argument('-n', default='TH_Iso_Grid', type=str, required=False, help='Mekong_Grid, TH_Iso_Grid, TH_Imp_Grid, KH, LA, VH, VS, TH ...') # TH_Iso = Isolated Thailand network, TH_imp = Thailand w imports, Mekong = Mekong Power Grid
 parser.add_argument('-s', default='nuclear', type=str, required=False, help='nuclear, no_nuclear')
 args = parser.parse_args()
@@ -99,10 +99,10 @@ hydromax_weeks = CHydro * hydro_weekly_cf[::7*24, :] *7*24/1000 # Weekly energy 
                         [9, 16], #NAC-LAN_I """
 
 transmission_loss_factors = np.array([0.07, 0.03, 0.03, 0.07, 0.03, 0.07, 0.07, 0.07, 0.07, 0.07, 0.03, 0.03,
-                   0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.03, 0.03, 0.07, 0.07, 0.03])                     # HVDC from https://www.adb.org/sites/default/files/publication/846471/power-trade-greater-mekong-subregion.pdf
+                   0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.03, 0.03, 0.07, 0.07, 0.03], dtype=np.float64)                     # HVDC from https://www.adb.org/sites/default/files/publication/846471/power-trade-greater-mekong-subregion.pdf
 DCdistance = np.array([550, 350, 640, 760, 460, 670, 520, 1280, 590, 470, 1180, 530,
-                   670, 70, 110, 90, 360, 360, 440, 450, 280, 520, 320, 370])
-DCloss = DCdistance * transmission_loss_factors * pow(10, -3) # UPDATE THIS TO CORRECT DISTANCES in km
+                   670, 70, 110, 90, 360, 360, 440, 450, 280, 520, 320, 370], dtype=np.float64)
+DCloss = DCdistance * transmission_loss_factors * pow(10, -3)
 
 ###### Simulation Period ######
 firstyear, finalyear, timestep = (2010, 2019, 1)
@@ -217,6 +217,10 @@ if 'Grid' in node:
     storage_lb_np, storage_ub_np = [x[np.where(np.in1d(Nodel, coverage)==True)[0]] for x in (storage_lb_np, storage_ub_np)]
     battery_lb_np, battery_ub_np = [x[np.where(np.in1d(Nodel, coverage)==True)[0]] for x in (battery_lb_np, battery_ub_np)]
 
+    CInter_mask = np.zeros((len(Nodel)), dtype=np.int64)
+    CInter_mask = CInter_mask[np.where(np.in1d(Nodel, coverage)==True)[0]]
+    CInter_mask[np.where(np.in1d(coverage, Interl)==True)[0]] = 1
+
     Nodel_int = Nodel_int[np.where(np.in1d(Nodel, coverage)==True)[0]]
     PVl_int = PVl_int[np.where(np.in1d(PVl, coverage)==True)[0]]
     Windl_int = Windl_int[np.where(np.in1d(Windl, coverage)==True)[0]]
@@ -256,13 +260,13 @@ if 'Grid' in node:
     network = network[network_mask,:]
     networkdict = {v:k for k, v in enumerate(Nodel_int)}
     #translate into indicies rather than Nodel_int values
-    network = np.array([networkdict[n] for n in network.flatten()], np.int64).reshape(network.shape)
+    network = np.array([networkdict[n] for n in network.flatten()], dtype=np.int64).reshape(network.shape)
     
-    trans_tdc_mask = np.zeros((MLoad.shape[1], len(network)), np.bool_)
+    trans_tdc_mask = np.zeros((MLoad.shape[1], len(network)), dtype=np.bool_)
     for line, row in enumerate(network):
         trans_tdc_mask[row[0], line] = True
     
-    directconns = -1*np.ones((len(Nodel)+1, len(Nodel)+1), np.int64)
+    directconns = -1*np.ones((len(Nodel)+1, len(Nodel)+1), dtype=np.int64)
     for n, row in enumerate(network):
         directconns[*row] = n
         directconns[*row[::-1]] = n
@@ -377,7 +381,7 @@ bpidx, bhidx = seidx + nodes, seidx + nodes + nodes
 inters = len(Interl) # The number of external interconnections
 iidx = bhidx + inters
 
-energy = MLoad.sum() * pow(10, -9) * resolution / years # PWh p.a.
+energy = MLoad.sum() * resolution / years # MWh p.a.
 
 baseload = np.tile(CBaseload, (intervals, 1)) * 1000 # GW to MW, excluding hydro
 
@@ -386,7 +390,7 @@ allowance = min(0.00002*np.reshape(MLoad.sum(axis=1), (-1,8760)).sum(axis=-1)) #
 efficiency = 0.8 #80% round-trip efficiency PHES
 
 ###### DECISION VARIABLE UPPER AND LOWER BOUNDS ######
-CDCmax = 300.*np.ones_like(DCloss[network_mask])
+CDCmax = 300.*np.ones_like(DCloss[network_mask], dtype=np.float64)
 
 pv_lb = list(pv_lb_np)
 pv_ub = list(pv_ub_np)
@@ -402,7 +406,7 @@ bduration_lb = list([0.]*nodes)
 bduration_ub = list([24.]*nodes)
 inters_lb = list(inters_lb_np)
 inters_ub = list(inters_ub_np)
-transmission_lb = [0.] * network_mask.sum()
+transmission_lb = list(np.array([0.] * network_mask.sum()))
 transmission_ub = list(CDCmax)
 
 print(pv_lb, wind_lb, phes_lb, storage_lb, battery_lb, bduration_lb, inters_lb, transmission_lb)
@@ -418,7 +422,7 @@ from Simulation import Reliability
 def weekly_sum(original_array):
     num_rows, num_cols = original_array.shape
     new_num_rows = num_rows // (7*24) + 1
-    new_array = np.zeros((new_num_rows, num_cols))
+    new_array = np.zeros((new_num_rows, num_cols), dtype=np.float64)
     
     for i in range(new_num_rows):
         for j in range(7*24):
@@ -430,33 +434,42 @@ def weekly_sum(original_array):
 
 @njit()
 def F(S):
-    CInter = np.zeros(len(S.CInter))
-    for i in range(len(S.CInter)):
-        CInter[i] = S.CInter[i]
-    
     # Simulation with baseload
-    Deficit1, Discharge1 = Reliability(S, flexible=np.zeros((intervals, nodes), dtype=np.float64), agg_storage=True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64)) # Sj-EDE(t, j), MW
+    Deficit1 = Reliability(S, flexible=np.zeros((intervals, nodes), dtype=np.float64), agg_storage=True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64)) # Sj-EDE(t, j), MW
 
     # Simulation with baseload + flexible hydro and bio
     if 'Grid' in node:
-        Deficit2, Discharge2 = Reliability(S, flexible=np.ones((intervals, nodes), dtype=np.float64) * CPeak * pow(10,3), agg_storage=True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64)) # Sj-EDE(t, j), MW 
-        imports = np.clip(Deficit2,0,CInter.sum())
+        Deficit2 = Reliability(S, flexible=np.ones((intervals, nodes), dtype=np.float64) * CPeak * pow(10,3), agg_storage=True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64)) # Sj-EDE(t, j), MW 
     else:
-        Deficit2 = np.zeros((intervals,1), dtype=np.float64)
-        imports = np.zeros((intervals,1), dtype=np.float64)
-    hydrobio = np.clip(Deficit1-Deficit2, 0, CPeak.sum() * pow(10,3))/efficiency # MWh
-    hydro = np.clip(hydrobio, 0, CHydro.sum() * pow(10, 3))/efficiency # MWh
+        Deficit2 = np.zeros((intervals,nodes), dtype=np.float64)
+    
+    # Clip all of the profiles based on capacity at each node
+    num_rows, num_cols = Deficit1.shape
+    Flexible = Deficit1-Deficit2
+    imports = np.zeros((intervals,nodes), dtype=np.float64)
+    hydrobio = np.zeros((intervals,nodes), dtype=np.float64)
+    hydro = np.zeros((intervals,nodes), dtype=np.float64)
+    for i in range(num_rows):
+        for j in range(num_cols):
+            imports[i,j] = max(min(Deficit2[i, j],S.CInter[j]),0)
+            hydrobio[i, j] = max(min((Flexible)[i, j],CPeak[j]),0)
+            hydro[i,j] = max(min(hydrobio[i, j],CHydro[j]),0)
+    hydro = hydro/efficiency
+    hydrobio = hydrobio/efficiency
+    
+    # Constrain weekly generation from hydro
     Hydro_Weekly = weekly_sum(hydro)
-    PenHydro = np.sum(np.minimum(hydromax_weeks - Hydro_Weekly, 0)) 
-    PenHydro = PenHydro*PenHydro*1000000 # Create positive, large penalty number
+    PenHydro = np.sum(np.maximum(Hydro_Weekly - hydromax_weeks, 0)) *1000000 # Create positive, large penalty number
 
-    GHydroBio = hydrobio.sum() * resolution / years / (0.5 * (1 + efficiency)) # MWh p.a.  
-    GImports = imports.sum() * resolution / years / (0.5 * (1 + efficiency)) # MWh p.a.  
+    GHydroBio = hydrobio.sum() * resolution / years # MWh p.a.  
+    GImports = imports.sum() * resolution / years # MWh p.a.  
     GBaseload = baseload.sum() * resolution / years
 
     # Deficit calculation
-    Deficit, Discharge = Reliability(S, flexible=hydrobio+imports, agg_storage=True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64)) # Sj-EDE(t, j), GW to MW
-    PenDeficit = np.maximum(0, Deficit.sum() * resolution) # MWh
+    Deficit = Reliability(S, flexible=hydrobio+imports, agg_storage=True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64)) # Sj-EDE(t, j), GW to MW
+    #Deficit = Reliability(S, flexible=np.zeros((intervals, nodes), dtype=np.float64), agg_storage=True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64)) # Sj-EDE(t, j), GW to MW
+    
+    PenDeficit = np.maximum(0., Deficit.sum() * resolution - allowance) * 1000000 # MWh
 
     #CHVDC = np.zeros(len(network_mask), dtype=np.float64)
     #CHVDC = S.CHVDC
@@ -468,12 +481,15 @@ def F(S):
                                [S.CPV.sum(), S.CWind.sum(), GHydroBio * 0.000_001, GBaseload.sum() * 0.000_001, 0, 0])
             ).sum() + (factor_trans * np.array(list(CHVDC))).sum()  """   
 
-    cost, _ = calculate_costs(S, Discharge, GHydroBio, GImports, GBaseload)
+    cost, _ = calculate_costs(S, S.Discharge*S.CPHS.sum()/(S.CPHS.sum()+S.CBS.sum()) , GHydroBio, GImports, GBaseload)
+    #cost = calculate_costs(S, S.Discharge*S.CPHS.sum()/(S.CPHS.sum()+S.CBS.sum()), GHydroBio, GImports, GBaseload)
     
     loss = np.zeros(len(network_mask), dtype=np.float64)
-    loss[network_mask] = S.TDC.sum(axis=0) * DCloss[network_mask]
-    loss = loss.sum() * 0.000000001 * resolution / years # PWh p.a.
+    loss[network_mask] = S.TDCabs.sum(axis=0) * DCloss[network_mask]
+    loss = loss.sum() * resolution / years # MWh p.a.
     LCOE = cost / np.abs(energy - loss)
+
+    print(LCOE)
     
     return LCOE, (PenHydro+PenDeficit)
 
@@ -487,6 +503,7 @@ solution_spec = [
     ('MLoad', float64[:, :]),  # 2D array of floats
     ('intervals', int64), # plain integer
     ('nodes', int64),
+    ('years', int64),
     ('resolution',float64), # plain float
     ('allowance',float64),
     ('CPV', float64[:]), 
@@ -494,6 +511,9 @@ solution_spec = [
     ('CInter', float64[:]),
     ('CPHP', float64[:]),
     ('CPHS', float64[:]),
+    ('CBP', float64[:]),
+    ('CBH', float64[:]),
+    ('CBS', float64[:]),
     ('CHVDC', float64[:]),
     ('GPV', float64[:, :]), 
     ('GWind', float64[:, :]), 
@@ -547,7 +567,9 @@ class Solution:
     def __init__(self, x):
         self.x = x
         
-        self.intervals, self.nodes, self.years = intervals, nodes, years
+        self.intervals = intervals
+        self.nodes = nodes
+        self.years = years
         self.resolution = resolution
         self.network, self.directconns = network, directconns
         self.trans_tdc_mask = trans_tdc_mask
@@ -556,17 +578,22 @@ class Solution:
 
         self.CPV = x[: pidx]  # CPV(i), GW
         self.CWind = x[pidx: widx]  # CWind(i), GW
-        self.CInter = x[seidx:iidx]
+
+        _CInter = x[seidx:iidx]
+        CInter = np.zeros(len(CInter_mask), dtype=np.float64)
+        counter = 0
+        for i in range(len(CInter)):
+            if CInter_mask[i] == 1:
+                CInter[i] = _CInter[counter]
+                counter+=1
+        self.CInter = CInter
         
         # Manually replicating np.tile functionality for CPV and CWind
-        CPV_tiled = np.zeros((intervals, len(self.CPV)))
-        CWind_tiled = np.zeros((intervals, len(self.CWind)))
-        CInter_tiled = np.zeros((intervals, len(self.CInter)))
+        CPV_tiled = np.zeros((intervals, len(self.CPV)), dtype=np.float64)
+        CWind_tiled = np.zeros((intervals, len(self.CWind)), dtype=np.float64)
         for i in range(intervals):
             for j in range(len(self.CPV)):
                 CPV_tiled[i, j] = self.CPV[j]
-            for j in range(len(self.CInter)):
-                CInter_tiled[i, j] = self.CInter[j]
             for j in range(len(self.CWind)):
                 CWind_tiled[i, j] = self.CWind[j]
 
