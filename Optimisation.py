@@ -10,7 +10,6 @@ import numpy as np
 import csv
 
 from Input import *
-#from Simulation import Reliability
 
 @njit(parallel=True)
 def ParallelObjectiveWrapper(xs):
@@ -36,6 +35,10 @@ if __name__=='__main__':
     print("Length of phes_ub:", len(phes_ub)) 
     print("Length of storage_lb:", len(storage_lb)) 
     print("Length of storage_ub:", len(storage_ub)) 
+    print("Length of battery_lb:", len(battery_lb)) 
+    print("Length of battery_ub:", len(battery_ub)) 
+    print("Length of bduration_lb:", len(bduration_lb)) 
+    print("Length of bduration_ub:", len(bduration_ub)) 
     print("Length of inters_lb:", len(inters_lb)) 
     print("Length of inters_ub:", len(inters_ub)) 
     print("Length of transmission_lb:", len(transmission_lb)) 
@@ -57,12 +60,12 @@ if __name__=='__main__':
         vectorized=True,
         )
 
-    with open('Results/Optimisation_resultx_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population), 'a', newline="") as csvfile:
+    with open('Results/Optimisation_resultx_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario), 'a', newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(result.x)
 
     endtime = dt.datetime.now()
     print("Optimisation took", endtime - starttime)
 
-    #from Dispatch import Analysis
-    #Analysis(result.x)
+    from Fill import Flexible
+    Flexible(result.x)

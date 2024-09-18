@@ -160,21 +160,18 @@ def fill_battery_discharge(deficit,battery_discharge,storage,CBP,storage_cap,eff
             
     return battery_discharge
 
-def save(hydro,discharge,charge,scenario=""):
-    np.savetxt('Results/Dispatch_Hydro{}.csv'.format(scenario), hydro, fmt='%f', delimiter=',', newline='\n', header='Flexible hydro')
-    np.savetxt('Results/Dispatch_BatteryDischarge{}.csv'.format(scenario), discharge, fmt='%f', delimiter=',', newline='\n', header='Battery discharge')
-    np.savetxt('Results/Dispatch_BatteryCharge{}.csv'.format(scenario), charge, fmt='%f', delimiter=',', newline='\n', header='Battery charge')
+def save(hydro,discharge,charge):
+    np.savetxt('Results/Dispatch_Hydro_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario), hydro, fmt='%f', delimiter=',', newline='\n', header='Flexible hydro')
+    np.savetxt('Results/Dispatch_BatteryDischarge_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario), discharge, fmt='%f', delimiter=',', newline='\n', header='Battery discharge')
+    np.savetxt('Results/Dispatch_BatteryCharge_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario), charge, fmt='%f', delimiter=',', newline='\n', header='Battery charge')
     
-if __name__=='__main__':
-    
-    capacities = np.genfromtxt('Results/Optimisation_resultx{}.csv'.format(scenario), delimiter=',')
-        
+def Flexible(capacities):    
     S = Solution(capacities)
-    
+
     # fill hydro with agg_storage = True
-    
+
     # Calculate initial deficit
-    Deficit, Discharge = Reliability(S, flexible=np.zeros(intervals, dtype=np.float64), agg_storage = True)
+    Deficit, Discharge = Reliability(S, flexible=np.zeros(intervals, dtype=np.float64), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
     
     print("Initial deficit:", Deficit.sum()/1e6)
     
@@ -189,7 +186,7 @@ if __name__=='__main__':
     h = fill_deficit(Deficit.copy(),hydro.copy(),Storage.copy(),S.CPeak.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy(),Charge_cap)
     
     # check deficit again
-    Deficit, Discharge = Reliability(S, flexible=h.copy(), agg_storage = True)
+    Deficit, Discharge = Reliability(S, flexible=h.copy(), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
     Storage = S.Storage
     Charge = S.Charge
     
@@ -201,7 +198,7 @@ if __name__=='__main__':
     while Deficit.sum() > 0.1 and step < 50:
         print("Total deficit:", Deficit.sum(), ", No. of deficit:", len(np.where(Deficit > 0)[0]), ", Step =", step)
         h = fill_deficit(Deficit.copy(),h.copy(),Storage.copy(),S.CPeak.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy(),Charge_cap)
-        Deficit, Discharge = Reliability(S, flexible=h.copy(), agg_storage = True)
+        Deficit, Discharge = Reliability(S, flexible=h.copy(), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
         Storage = S.Storage
         Charge = S.Charge
         step += 1
@@ -212,7 +209,7 @@ if __name__=='__main__':
     h_remove_spillage = np.array([max(0,h[i]-S.Spillage[i]) for i in range(len(h))])
     
     # check deficit again
-    Deficit, Discharge = Reliability(S, flexible=h_remove_spillage.copy(), agg_storage = True)
+    Deficit, Discharge = Reliability(S, flexible=h_remove_spillage.copy(), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
         
     print("Final hydro generation:", h_remove_spillage.sum()/1e6/years)
     print("Remaining deficit:", Deficit.sum()/1e6)
@@ -317,10 +314,17 @@ if __name__=='__main__':
                     Deficit, Discharge = Reliability(S, flexible=h_revise.copy(), agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
                     step += 1
                 if Deficit.sum() < 0.1:
-                    save(h_revise, BatteryDischarge, BatteryCharge, scenario)
+                    save(h_revise, BatteryDischarge, BatteryCharge)
                     
         else:
-            save(h_remove_spillage, BatteryDischarge, BatteryCharge, scenario)
+            save(h_remove_spillage, BatteryDischarge, BatteryCharge)
     else:
         
-        save(h_remove_spillage, BatteryDischarge, BatteryCharge, scenario)
+        save(h_remove_spillage, BatteryDischarge, BatteryCharge)
+
+if __name__=='__main__':    
+    capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario), delimiter=',')
+
+    Flexible(capacities)    
+    
+    

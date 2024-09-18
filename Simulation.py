@@ -12,7 +12,7 @@ perfect = np.array([0,1,3,6,10,15,21,28,36])
 
 
 @njit
-def Reliability(solution, flexible, start=None, end=None):
+def Reliability(solution, flexible, agg_storage, battery_charge, battery_discharge, start=None, end=None):
     """ 
     flexible = np.ones((intervals, nodes))*CPeak*1000; end=None; start=None 
     """
@@ -20,13 +20,20 @@ def Reliability(solution, flexible, start=None, end=None):
     trans_tdc_mask = solution.trans_tdc_mask
     networksteps = np.where(perfect == network.shape[2])[0][0]
     
-    Netload = (solution.MLoad - solution.GPV - solution.GWind - solution.GBaseload)[start:end]
+    Netload = (solution.MLoad - solution.GPV - solution.GWind - solution.baseload)[start:end]
     Netload -= flexible
     
     shape2d = intervals, nodes = len(Netload), solution.nodes
 
-    Pcapacity = solution.CPHP * 1000 # S-CPHP(j), GW to MW
-    Scapacity = solution.CPHS * 1000 # S-CPHS(j), GWh to MWh
+    if agg_storage:
+        Pcapacity = (solution.CPHP + solution.CBP) * 1000 # S-CPHP(j), GW to MW
+        Scapacity = (solution.CPHS + solution.CBS) * 1000 # S-CPHS(j), GWh to MWh
+    else:
+        Pcapacity = solution.CPHP * 1000
+        Scapacity = solution.CBS * 1000
+
+        Netload = Netload + battery_charge - battery_discharge
+
     Hcapacity = solution.CHVDC * 1000 # GW to MW
     nhvdc = len(solution.CHVDC)
     efficiency, resolution = solution.efficiency, solution.resolution 
@@ -113,9 +120,10 @@ def Reliability(solution, flexible, start=None, end=None):
     solution.Deficit = Deficit
     solution.Import = np.maximum(0, ImpExp)
     solution.Export = -1 * np.minimum(0, ImpExp)
+
     solution.TDC = (np.atleast_3d(trans_tdc_mask).T*Transmission).sum(axis=2)
     
-    return Deficit
+    return Deficit, Discharge
 
 @njit
 def hvdc(Fillt, Surplust, Hcapacity, network, networksteps, Importt, Exportt):
