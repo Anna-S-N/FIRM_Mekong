@@ -27,7 +27,7 @@ def fill_deficit(deficit,hydro,imports,storage,hydro_limit,import_limit,storage_
         except IndexError: 
             nearest_full = 0
 
-        while d > 0.000001 and t > nearest_full and count < step:
+        while (d > 0.000001) and (t > nearest_full) and (count < step):
                             
             if t == i - 1: # if unable to meet deficit from real-time hydro, then the trickle-charging storage is required
                 d = d / efficiency
@@ -288,7 +288,7 @@ def Flexible(capacities):
             hydro = np.zeros(intervals, dtype=np.float64)
             flexible = flexible_2d(hydro, i, hydro_prop, imports_prop)
             Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
-            h,i = fill_deficit(Deficit.copy(),hydro.copy(),imports.copy(), Storage.copy(),S.CPeak*1000,S.CInter*1000,Storage_cap,S.efficiency,9999,Charge.copy(),Charge_cap,True,False)
+            h,i = fill_deficit(Deficit.copy().sum(axis=1),hydro.copy(),imports.copy(), Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,True,False)
             flexible = flexible_2d(h, i, hydro_prop, imports_prop)
             # check deficit again
             Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
