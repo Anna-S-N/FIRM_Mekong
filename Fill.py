@@ -336,17 +336,17 @@ def Flexible(capacities):
     
         Deficit = Reliability(S, flexible=flexible, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
         
-        Spillage = S.Spillage
+        Spillage = S.Spillage.sum(axis=1)
         # Initially, use all spillage for battery charge, as long as battery power is sufficient. This allows battery storage level to be monitored when filling deficit using battery discharge
-        BatteryCharge = columnwise_clip(Spillage, CBP) #np.clip(Spillage, 0, CBP)
+        BatteryCharge = np.clip(Spillage, 0, CBP)
         
         # fill deficit from battery discharge
         
         Deficit = Reliability(S, flexible=flexible, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
         Storage = S.Storage
         Charge = S.Charge
-        Storage_cap = S.CPHS * pow(10, 3)
-        Charge_cap = S.CPHP * pow(10, 3)
+        Storage_cap = S.CPHS.sum() * pow(10, 3)
+        Charge_cap = S.CPHP.sum() * pow(10, 3)
         
         print("Initial deficit for battery:", Deficit.sum()/1e6)
         
@@ -367,8 +367,9 @@ def Flexible(capacities):
             Storage = S.Storage
             Charge = S.Charge
             step += 1
-            
-        BatteryDischarge = np.maximum(0, BatteryDischarge - np.maximum(0, S.Spillage))
+        
+        Spillage = S.Spillage.sum(axis=1)
+        BatteryDischarge = np.array([max(0,BatteryDischarge[i]-max(0,Spillage[i])) for i in range(len(BatteryDischarge))])
         Deficit = Reliability(S, flexible=flexible, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
         
         print("Final battery discharge:", BatteryDischarge.sum()/1e6)
@@ -388,16 +389,12 @@ def Flexible(capacities):
                 previous_level = battery_level[t-1]
 
             netcharget = BatteryCharge[t] * battery_efficiency - BatteryDischarge[t]
+            battery_levelt = min(previous_level + netcharget, CBS)
             
-            # Use np.minimum to clip battery level to CBS
-            battery_levelt = np.minimum(previous_level + netcharget, CBS)
-            
-            # Update BatteryCharge only where necessary
-            # np.where is used to handle the condition element-wise
-            overcharge = np.maximum(0, (previous_level + netcharget - CBS) / battery_efficiency)
-            BatteryCharget = BatteryCharge[t] - overcharge
-            BatteryCharge[t] = np.where(netcharget > 0, BatteryCharget, BatteryCharge[t])
-
+            if netcharget > 0 and battery_levelt == CBS:
+                BatteryCharget = BatteryCharge[t] - max(0,battery_level[t-1] + netcharget - battery_levelt) / battery_efficiency
+                BatteryCharge[t] = BatteryCharget
+                
             battery_level[t] = battery_levelt
                     
         Deficit = Reliability(S, flexible=flexible, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
