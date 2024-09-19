@@ -1,15 +1,15 @@
 from Input import *
 from Simulation import Reliability
 import numpy as np
+import sys
 
-'''Need 2d arrays for hydro and imports'''
 '''Need weekly hydro constraints'''
 
 def fill_deficit(deficit,hydro,imports,storage,hydro_limit,import_limit,storage_cap,efficiency,step,charge,charge_cap,hflag,iflag):
         
-    idx = np.where(deficit > 0)[0]
-    storage_full = np.where(storage == storage_cap)[0]
-    charging_full = np.where(charge == charge_cap)[0]
+    idx = np.where(deficit > 0.000001)[0]
+    storage_full = np.where(storage >= storage_cap)[0] 
+    charging_full = np.where(charge >= charge_cap)[0]
     
     for idd, i in np.ndenumerate(idx):
         
@@ -26,8 +26,8 @@ def fill_deficit(deficit,hydro,imports,storage,hydro_limit,import_limit,storage_
             # as the energy used to charge storage before "nearest full" will be curtailed at or before "nearest full" anyways
         except IndexError: 
             nearest_full = 0
-        
-        while d > 0 and t > nearest_full and count < step:
+
+        while d > 0.000001 and t > nearest_full and count < step:
                             
             if t == i - 1: # if unable to meet deficit from real-time hydro, then the trickle-charging storage is required
                 d = d / efficiency
@@ -37,9 +37,11 @@ def fill_deficit(deficit,hydro,imports,storage,hydro_limit,import_limit,storage_
                 d = d - (hydro_c - hydro[t])
                 hydro[t] = hydro_c
                 
+                # Find intervals where any node's hydro is less than its corresponding hydro limit
                 available_hydro_idx = np.where(hydro < hydro_limit)[0]
-                # move to the most recent time when hydro and PHES are not operating at full power (spare power capacity available)
+
                 try:
+                    # Move to the most recent time where hydro and PHES are not operating at full power
                     t = sorted([i for i in available_hydro_idx if i < t and i > nearest_full and i not in charging_full])[-1]
                 except IndexError:
                     break
@@ -67,9 +69,9 @@ def update_battery_level(battery_discharge,battery_charge,battery_efficiency,bat
     if len(old_battery_level) > 0:
         battery_level = old_battery_level.copy()
     else:
-        battery_level = np.zeros(len(battery_discharge), dtype=np.float64)
+        battery_level = np.zeros(intervals, dtype=np.float64)
     
-    for t in range(start_t, len(battery_discharge)):
+    for t in range(start_t, intervals):
         
         if t == 0:
             battery_level[t] = 0.5 * battery_energy
@@ -92,7 +94,7 @@ def fill_battery_discharge(deficit,battery_discharge,storage,CBP,storage_cap,eff
     ''' fill deficit from battery discharging, generally the same logic as filling defict with hydro with a few small changes '''
         
     idx = np.where(deficit > 0)[0]
-    storage_full = np.where(storage == storage_cap)[0]
+    storage_full = np.where(storage >= storage_cap)[0] 
     
     for idd, i in np.ndenumerate(idx):
         
@@ -102,7 +104,7 @@ def fill_battery_discharge(deficit,battery_discharge,storage,CBP,storage_cap,eff
         print("Filling deficit with battery", idd[0], "of", len(idx), "t =", ini_t)
         
         try:
-            nearest_full = storage_full[np.where(storage_full < ini_t)[0][-1]]
+            nearest_full = storage_full[np.where(storage_full < ini_t)[0][-1]] 
         except IndexError:
             nearest_full = 0
         
@@ -181,38 +183,56 @@ def save(hydro,imports, discharge,charge):
     np.savetxt('Results/Dispatch_BatteryDischarge_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), discharge, fmt='%f', delimiter=',', newline='\n', header='Battery discharge')
     np.savetxt('Results/Dispatch_BatteryCharge_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), charge, fmt='%f', delimiter=',', newline='\n', header='Battery charge')
     
+def columnwise_clip(array_2d, clip_vector):
+    num_row, num_col = array_2d.shape
+    for i in range(num_col):
+        array_2d[:,i] = np.clip(array_2d[:, i], 0, clip_vector[i])
+    return array_2d
+
+def flexible_2d(hydro, imports, hydro_prop, imports_prop):
+    flexible = hydro[:, np.newaxis]*hydro_prop[np.newaxis, :] + imports[:, np.newaxis]*imports_prop[np.newaxis, :]
+    return flexible
+
 def Flexible(capacities):    
     S = Solution(capacities)
 
     # fill hydro with agg_storage = True
 
     # Calculate initial deficit
-    Deficit1, _ = Reliability(S, flexible=np.zeros((intervals,nodes), dtype=np.float64), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
-    Deficit2, _ = Reliability(S, flexible=np.ones((intervals, nodes), dtype=np.float64) * CPeak * pow(10,3), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+    Deficit1 = Reliability(S, flexible=np.zeros((intervals,nodes), dtype=np.float64), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+    hydrobio = columnwise_clip(Deficit1, S.CPeak*1000)
+    np.savetxt('Results/Test3.csv', hydrobio, fmt='%f', delimiter=',', newline='\n')
+    
+    
+    Deficit2 = Reliability(S, flexible=hydrobio, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
     
     GImports = Deficit2.sum() / years / efficiency
     GHydroBio = Deficit1.sum() / years / efficiency - GImports
 
-    print("Initial deficit:", Deficit.sum()/1e6)
+    print("Initial deficit1:", Deficit1.sum())
+    print("Initial deficit2:", Deficit2.sum())
     
     Storage = S.Storage
     Charge = S.Charge
     Storage_cap = (S.CPHS.sum() + S.CBS.sum()) * pow(10, 3)
     Charge_cap = (S.CPHP.sum() + S.CBP.sum()) * pow(10, 3)
+
+    hydro_prop = S.CPeak / S.CPeak.sum()
+    imports_prop = S.CInter / S.CInter.sum()
     
     if (GImports == 0):
         print("HYDRO ONLY")
         print("------------------------------")
         # initial hydro (peak) = zero
-        hydro = np.zeros((intervals,nodes), dtype=np.float64)
-        imports = np.zeros((intervals,nodes), dtype=np.float64)
-        
-        Deficit, _ = Reliability(S, flexible=hydro+imports, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+        hydro = np.zeros(intervals, dtype=np.float64)
+        imports = np.zeros(intervals, dtype=np.float64)
+        flexible = flexible_2d(hydro, imports, hydro_prop, imports_prop)
+        Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
         # start filling
-        h,i = fill_deficit(Deficit.copy(),hydro.copy(),imports.copy(), Storage.copy(),S.CPeak*1000,S.CInter*1000,Storage_cap,S.efficiency,9999,Charge.copy(),Charge_cap,True,False)
-        
+        h,i = fill_deficit(Deficit.copy().sum(axis=1),hydro.copy(),imports.copy(), Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,True,False)
+        flexible = flexible_2d(h, i, hydro_prop, imports_prop)
         # check deficit again
-        Deficit, _ = Reliability(S, flexible=h.copy()+i.copy(), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+        Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
         Storage = S.Storage
         Charge = S.Charge
         
@@ -223,8 +243,9 @@ def Flexible(capacities):
         # repeat filling for 50 times max
         while Deficit.sum() > allowance*years and step < 50:
             print("Total deficit:", Deficit.sum(), ", No. of deficit:", len(np.where(Deficit > 0)[0]), ", Step =", step)
-            h,i = fill_deficit(Deficit.copy(),h.copy(),i.copy(), Storage.copy(),S.CPeak*1000,S.CInter*1000,Storage_cap,S.efficiency,9999,Charge.copy(),Charge_cap,True,False)
-            Deficit, _ = Reliability(S, flexible=h.copy() + i.copy(), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+            h,i = fill_deficit(Deficit.copy().sum(axis=1),h.copy(),i.copy(), Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,True,False)
+            flexible = flexible_2d(h, i, hydro_prop, imports_prop)
+            Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
             Storage = S.Storage
             Charge = S.Charge
             step += 1
@@ -234,15 +255,16 @@ def Flexible(capacities):
         print("HYDRO + IMPORTS")
         print("------------------------------")
         # initial hydro (peak) = zero
-        hydro = np.ones((intervals,nodes), dtype=np.float64) * S.CPeak * 1000
-        imports = np.zeros((intervals,nodes), dtype=np.float64)
-        
-        Deficit, _ = Reliability(S, flexible=hydro+imports, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+        hydro = hydrobio.sum(axis=1)
+        imports = np.zeros(intervals, dtype=np.float64)
+        flexible = flexible_2d(hydro, imports, hydro_prop, imports_prop)
+        Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
         # start filling
-        h,i = fill_deficit(Deficit.copy(),hydro.copy(),imports.copy(), Storage.copy(),S.CPeak*1000,S.CInter*1000,Storage_cap,S.efficiency,9999,Charge.copy(),Charge_cap,False,True)
         
+        h,i = fill_deficit(Deficit.copy().sum(axis=1),hydro.copy(),imports.copy(), Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,False,True)
+        flexible = flexible_2d(h, i, hydro_prop, imports_prop)
         # check deficit again
-        Deficit, _ = Reliability(S, flexible=h.copy()+i.copy(), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+        Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
         Storage = S.Storage
         Charge = S.Charge
         
@@ -253,8 +275,9 @@ def Flexible(capacities):
         # repeat filling for 50 times max
         while Deficit.sum() > allowance*years and step < 50:
             print("Total deficit:", Deficit.sum(), ", No. of deficit:", len(np.where(Deficit > 0)[0]), ", Step =", step)
-            h,i = fill_deficit(Deficit.copy(),h.copy(),i.copy(), Storage.copy(),S.CPeak*1000,S.CInter*1000,Storage_cap,S.efficiency,9999,Charge.copy(),Charge_cap,False,True)
-            Deficit, _ = Reliability(S, flexible=h.copy() + i.copy(), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+            h,i = fill_deficit(Deficit.copy().sum(axis=1),h.copy(),i.copy(), Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,False,True)
+            flexible = flexible_2d(h, i, hydro_prop, imports_prop)
+            Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
             Storage = S.Storage
             Charge = S.Charge
             step += 1
@@ -262,12 +285,13 @@ def Flexible(capacities):
         print("Imports done")
 
         if Deficit.sum() < allowance*years:
-            hydro = np.zeros((intervals,nodes), dtype=np.float64)
-            Deficit, _ = Reliability(S, flexible=hydro+i, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+            hydro = np.zeros(intervals, dtype=np.float64)
+            flexible = flexible_2d(hydro, i, hydro_prop, imports_prop)
+            Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
             h,i = fill_deficit(Deficit.copy(),hydro.copy(),imports.copy(), Storage.copy(),S.CPeak*1000,S.CInter*1000,Storage_cap,S.efficiency,9999,Charge.copy(),Charge_cap,True,False)
-        
+            flexible = flexible_2d(h, i, hydro_prop, imports_prop)
             # check deficit again
-            Deficit, _ = Reliability(S, flexible=h.copy()+i.copy(), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+            Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
             Storage = S.Storage
             Charge = S.Charge
             
@@ -278,8 +302,9 @@ def Flexible(capacities):
             # repeat filling for 50 times max
             while Deficit.sum() > allowance*years and step < 50:
                 print("Total deficit:", Deficit.sum(), ", No. of deficit:", len(np.where(Deficit > 0)[0]), ", Step =", step)
-                h,i = fill_deficit(Deficit.copy(),h.copy(),i.copy(), Storage.copy(),S.CPeak*1000,S.CInter*1000,Storage_cap,S.efficiency,9999,Charge.copy(),Charge_cap,True,False)
-                Deficit, _ = Reliability(S, flexible=h.copy() + i.copy(), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+                h,i = fill_deficit(Deficit.copy().sum(axis=1),h.copy(),i.copy(), Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,True,False)
+                flexible = flexible_2d(h, i, hydro_prop, imports_prop)
+                Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
                 Storage = S.Storage
                 Charge = S.Charge
                 step += 1
@@ -287,11 +312,11 @@ def Flexible(capacities):
             print("Hydro done")
 
     # remove unnecessary hydro (peak) if spillage presents
-    '''SUM ALONG NODAL AXIS'''
-    h_remove_spillage = np.array([max(0,h[i]-S.Spillage[i]) for i in range(len(h))])
+    h_remove_spillage = np.maximum(0, h - S.Spillage.sum(axis=1))
+    flexible = flexible_2d(h_remove_spillage, i, hydro_prop, imports_prop)
     
     # check deficit again
-    Deficit, _ = Reliability(S, flexible=h_remove_spillage.copy()+i.copy(), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+    Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
         
     print("Final hydro generation:", h_remove_spillage.sum()/1e6/years)
     print("Remaining deficit:", Deficit.sum()/1e6)
@@ -299,35 +324,35 @@ def Flexible(capacities):
     # fill battery charge whenever possible
     
     # set everything to zero first
-    BatteryCharge = np.zeros(intervals, dtype=np.float64)
-    BatteryDischarge = np.zeros(intervals, dtype=np.float64)
-    BatteryStorage = np.zeros(intervals, dtype=np.float64)
+    BatteryCharge = np.zeros((intervals, nodes), dtype=np.float64)
+    BatteryDischarge = np.zeros((intervals, nodes), dtype=np.float64)
+    BatteryStorage = np.zeros((intervals, nodes), dtype=np.float64)
     
     CBS = S.CBS.sum() * 1000
     CBP = S.CBP.sum() * 1000
     battery_efficiency = 0.9
     
-    if CBP != 0:
+    if CBP.sum() != 0:
     
-        Deficit, _ = Reliability(S, flexible=h_remove_spillage.copy()+i.copy(), agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
+        Deficit = Reliability(S, flexible=flexible, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
         
         Spillage = S.Spillage
         # Initially, use all spillage for battery charge, as long as battery power is sufficient. This allows battery storage level to be monitored when filling deficit using battery discharge
-        BatteryCharge = np.clip(Spillage, 0, CBP)
+        BatteryCharge = columnwise_clip(Spillage, CBP) #np.clip(Spillage, 0, CBP)
         
         # fill deficit from battery discharge
         
-        Deficit, _ = Reliability(S, flexible=h_remove_spillage.copy()+i.copy(), agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
+        Deficit = Reliability(S, flexible=flexible, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
         Storage = S.Storage
         Charge = S.Charge
-        Storage_cap = S.CPHS.sum() * pow(10, 3)
-        Charge_cap = S.CPHP.sum() * pow(10, 3)
+        Storage_cap = S.CPHS * pow(10, 3)
+        Charge_cap = S.CPHP * pow(10, 3)
         
         print("Initial deficit for battery:", Deficit.sum()/1e6)
         
-        BatteryDischarge = fill_battery_discharge(Deficit.copy(),BatteryDischarge.copy(),Storage.copy(),CBP,Storage_cap,S.efficiency,9999,BatteryCharge.copy(),CBS,battery_efficiency,Charge.copy(),Charge_cap)
+        BatteryDischarge = fill_battery_discharge(Deficit.copy().sum(axis=1),BatteryDischarge.copy(),Storage.copy().sum(axis=1),CBP,Storage_cap,S.efficiency,9999,BatteryCharge.copy(),CBS,battery_efficiency,Charge.copy().sum(axis=1),Charge_cap)
         
-        Deficit, _ = Reliability(S, flexible=h_remove_spillage.copy()+i.copy(), agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
+        Deficit = Reliability(S, flexible=flexible, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
         Storage = S.Storage
         Charge = S.Charge
         
@@ -337,14 +362,14 @@ def Flexible(capacities):
         
         while Deficit.sum() > allowance*years and step < 50:
             print("Total deficit:", Deficit.sum(), ", No. of deficit:", len(np.where(Deficit > 0)[0]), ", Step =", step)
-            BatteryDischarge = fill_battery_discharge(Deficit.copy(),BatteryDischarge.copy(),Storage.copy(),CBP,Storage_cap,S.efficiency,9999,BatteryCharge.copy(),CBS,battery_efficiency,Charge.copy(),Charge_cap)
-            Deficit, _ = Reliability(S, flexible=h_remove_spillage.copy()+i.copy(), agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
+            BatteryDischarge = fill_battery_discharge(Deficit.copy().sum(axis=1),BatteryDischarge.copy(),Storage.copy().sum(axis=1),CBP,Storage_cap,S.efficiency,9999,BatteryCharge.copy(),CBS,battery_efficiency,Charge.copy().sum(axis=1),Charge_cap)
+            Deficit = Reliability(S, flexible=flexible, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
             Storage = S.Storage
             Charge = S.Charge
             step += 1
             
-        BatteryDischarge = np.array([max(0,BatteryDischarge[i]-max(0,S.Spillage[i])) for i in range(len(BatteryDischarge))])
-        Deficit, _ = Reliability(S, flexible=h_remove_spillage.copy()+i.copy(), agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
+        BatteryDischarge = np.maximum(0, BatteryDischarge - np.maximum(0, S.Spillage))
+        Deficit = Reliability(S, flexible=flexible, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
         
         print("Final battery discharge:", BatteryDischarge.sum()/1e6)
         print("Remaining deficit:", Deficit.sum()/1e6)
@@ -361,16 +386,21 @@ def Flexible(capacities):
                 previous_level = 0.5 * CBS
             else:
                 previous_level = battery_level[t-1]
+
             netcharget = BatteryCharge[t] * battery_efficiency - BatteryDischarge[t]
-            battery_levelt = min(previous_level + netcharget, CBS)
             
-            if netcharget > 0 and battery_levelt == CBS:
-                BatteryCharget = BatteryCharge[t] - max(0,battery_level[t-1] + netcharget - battery_levelt) / battery_efficiency
-                BatteryCharge[t] = BatteryCharget
-                
+            # Use np.minimum to clip battery level to CBS
+            battery_levelt = np.minimum(previous_level + netcharget, CBS)
+            
+            # Update BatteryCharge only where necessary
+            # np.where is used to handle the condition element-wise
+            overcharge = np.maximum(0, (previous_level + netcharget - CBS) / battery_efficiency)
+            BatteryCharget = BatteryCharge[t] - overcharge
+            BatteryCharge[t] = np.where(netcharget > 0, BatteryCharget, BatteryCharge[t])
+
             battery_level[t] = battery_levelt
                     
-        Deficit, _ = Reliability(S, flexible=h_remove_spillage.copy()+i.copy(), agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
+        Deficit = Reliability(S, flexible=flexible, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
         
         print("Battery Charge:", BatteryCharge.sum()/1e6)
         print("Final deficit:", Deficit.sum()/1e6)
@@ -380,11 +410,12 @@ def Flexible(capacities):
             
             Storage = S.Storage
             Charge = S.Charge
-            h_revise, i = fill_deficit(Deficit.copy(),h_remove_spillage.copy(),i.copy(),Storage.copy(),S.CPeak*1000,S.CInter*1000,Storage_cap,S.efficiency,9999,Charge.copy(),Charge_cap,True,False)
-            Deficit, _ = Reliability(S, flexible=h_revise.copy()+i.copy(), agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
+            h_revise, i = fill_deficit(Deficit.copy().sum(axis=1),h_remove_spillage.copy(),i.copy(),Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,True,False)
+            flexible = flexible_2d(h_revise, i, hydro_prop, imports_prop)
+            Deficit = Reliability(S, flexible=flexible, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
             
             if Deficit.sum() < allowance*years:
-                save(h_revise, BatteryDischarge, BatteryCharge)
+                save(h_revise, i, BatteryDischarge, BatteryCharge)
                 
             else:
                 step = 1
@@ -392,8 +423,9 @@ def Flexible(capacities):
                     print("Total deficit:", Deficit.sum(), ", No. of deficit:", len(np.where(Deficit > 0)[0]), ", Step =", step)
                     Storage = S.Storage
                     Charge = S.Charge
-                    h_revise, i = fill_deficit(Deficit.copy(),h_remove_spillage.copy(),i.copy(),Storage.copy(),S.CPeak*1000,S.CInter*1000,Storage_cap,S.efficiency,9999,Charge.copy(),Charge_cap,True,False)
-                    Deficit, _ = Reliability(S, flexible=h_revise.copy()+i.copy(), agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
+                    h_revise, i = fill_deficit(Deficit.copy().sum(axis=1),h_remove_spillage.copy(),i.copy(),Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,True,False)
+                    flexible = flexible_2d(h_revise, i, hydro_prop, imports_prop)
+                    Deficit = Reliability(S, flexible=flexible, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
                     step += 1
                 if Deficit.sum() < allowance*years:
                     save(h_revise, i, BatteryDischarge, BatteryCharge)

@@ -16,6 +16,7 @@ def Reliability(solution, flexible, agg_storage, battery_charge, battery_dischar
     """ 
     flexible = np.ones((intervals, nodes))*CPeak*1000; end=None; start=None 
     """
+    
     network = solution.network
     trans_tdc_mask = solution.trans_tdc_mask
     networksteps = np.where(perfect == network.shape[2])[0][0]
