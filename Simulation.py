@@ -20,7 +20,7 @@ def Reliability(solution, flexible, agg_storage, battery_charge, battery_dischar
     trans_tdc_mask = solution.trans_tdc_mask
     networksteps = np.where(perfect == network.shape[2])[0][0]
     
-    Netload = (solution.MLoad - solution.GPV - solution.GWind - solution.baseload)[start:end]
+    Netload = (solution.MLoad - solution.GPV - solution.GWind - solution.baseload - solution.hydro_baseload)[start:end]
     Netload -= flexible
     
     shape2d = intervals, nodes = len(Netload), solution.nodes

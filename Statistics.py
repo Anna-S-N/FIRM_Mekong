@@ -71,33 +71,28 @@ def Debug(solution):
 
     return True
 
-def Information(x, flexible, charge, discharge):
+def Information(x, hydrobio, imports, charge, discharge):
 
     start = dt.datetime.now()
     print("Statistics start at", start)
 
     S = Solution(x)
+
+    S.flexible = hydrobio.sum(axis=1)+imports.sum(axis=1)
     
     S.battery_charge = charge
     S.battery_discharge = discharge
     
-    if S.CPeak.sum() != 0:
-        pkfactor = S.CPeak / S.CPeak.sum()
-    else:
-        pkfactor = np.zeros(S.CPeak.shape)
-    # Assume flexible.shape is (intervals, )
-    MPeak = (flexible.reshape(-1,1) * pkfactor.reshape(1,-1))
-    
-    Deficit, Discharge = Reliability(S, flexible=flexible, agg_storage = False, battery_charge = charge, battery_discharge = discharge)
+    Deficit, Discharge = Reliability(S, flexible=S.flexible, agg_storage = False, battery_charge = charge, battery_discharge = discharge)
     
     S.BStorage = update_battery_level(discharge,charge,0.9,S.CBS.sum()*1000)
+    S.TDCabs = np.abs(S.TDC)
 
-    Debug(S)
+    Debug(S)    
         
     """ S.TDC = Transmission(S, output = True, agg_storage = False)
     S.TDCabs = np.abs(S.TDC)   
-
-    S.QLD_NSW,S.NSW_VIC,S.VIC_SA,S.VIC_TAS = map(lambda k: S.TDC[:, k], range(S.TDC.shape[1]))
+    S.QLD_NSW,S.NSW_VIC,S.VIC_SA,S.VIC_TAS = map(lambda k: S.TDC[:, k], range(S.TDC.shape[1]))    
 
     # S.MPHS = S.CPHS * np.array(S.CPHP) * pow(10, 3) / sum(S.CPHP) # GW to MW
 
@@ -107,17 +102,19 @@ def Information(x, flexible, charge, discharge):
                   S.VIC_SA,
                   S.VIC_TAS])
 
-    C = np.stack([S.MLoad.sum(axis=1), S.Charge, S.Spillage, S.GPV.sum(axis=1), S.GWind.sum(axis=1), S.Discharge, S.Storage, 
-                  S.Deficit, S.GBaseload.sum(axis=1), S.flexible, S.battery_charge, S.battery_discharge, S.BStorage,
-                  S.QLD_NSW,S.NSW_VIC,S.VIC_SA,S.VIC_TAS]) """
+    """
+
+    C = np.stack([S.MLoad.sum(axis=1), S.Charge.sum(axis=1), S.Spillage.sum(axis=1), S.GPV.sum(axis=1), S.GWind.sum(axis=1), S.Discharge.sum(axis=1), S.Storage.sum(axis=1), 
+                  S.Deficit.sum(axis=1), S.GBaseload.sum(axis=1), S.flexible, S.battery_charge, S.battery_discharge, S.BStorage,
+                  S.TDC]) 
     
-    C = np.stack([S.MLoad.sum(axis=1), S.Charge, S.Spillage, S.GPV.sum(axis=1), S.GWind.sum(axis=1), S.Discharge, S.Storage, 
-                  S.Deficit, S.GBaseload.sum(axis=1), S.flexible, S.battery_charge, S.battery_discharge, S.BStorage])
     C = np.around(C.transpose())
+
+    '''NEED HEADER TO INCLUDE TRANSMISSION LINES'''
 
     header = 'Demand(MW),Storage charge(MW),Spillage(MW),Solar photovoltaics(MW),Wind(MW),Storage discharge(MW),Storage level(MWh),Deficit(MW),'\
              'Hydro baseload(MW),Hydro peak(MW),Battery charge (MW),Battery discharge(MW),Battery level(MWh)'
-    np.savetxt('Results/TimeSeries_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario), C, fmt='%f', delimiter=',', header=header, comments='')
+    np.savetxt('Results/TimeSeries_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), C, fmt='%f', delimiter=',', header=header, comments='')
 
     
     header = 'Operational demand,' \
@@ -133,7 +130,7 @@ def Information(x, flexible, charge, discharge):
                       S.MStorage[:, j]])
         C = np.around(C.transpose())
 
-        np.savetxt('Results/TimeSeries_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario,str(S.Nodel_int[j])), C, fmt='%f', delimiter=',', header=header, comments='')
+        np.savetxt('Results/TimeSeries_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario,str(S.Nodel_int[j])), C, fmt='%f', delimiter=',', header=header, comments='')
 
     
     print('Load profiles and generation mix is produced.')
@@ -171,7 +168,7 @@ def Information(x, flexible, charge, discharge):
     D[0, :] = [energy * pow(10,-6), Loss.sum()/years*pow(10,-6),CPV, GPV, CFPV, CWind, GWind, CFWind, CBaseload, CPeak, GBaseload, GPeak, CBP, CBS, CBS/CBP, CPHP, CPHS, CPHS/CPHP, CDC, 
                Deficit, Spillage, LCOE, LCOEPV, LCOEWind, LCOEHydro, LCOEStorage, LCOETransmission, LCOEBattery, LCOEImports]
 
-    np.savetxt('Results/Summary_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario), D, fmt='%f', delimiter=',', header = header)
+    np.savetxt('Results/Summary_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), D, fmt='%f', delimiter=',', header = header)
     print('Energy generation, storage and cost information is produced.')
 
     end = dt.datetime.now()
@@ -186,9 +183,10 @@ if __name__ == '__main__':
     # CBaseload = np.array([0, 0, 0, 0, 1.0]) # 24/7, GW
     # CPeak = CHydro + CBio - CBaseload # GW
     
-    capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario), delimiter=',')
-    flexible = np.genfromtxt('Results/Dispatch_Hydro_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario), delimiter=',', skip_header=1)
-    battery_charge = np.genfromtxt('Results/Dispatch_BatteryCharge_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario), delimiter=',', skip_header=1)
-    battery_discharge = np.genfromtxt('Results/Dispatch_BatteryDischarge_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario), delimiter=',', skip_header=1)
+    capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), delimiter=',')
+    hydrobio = np.genfromtxt('Results/Dispatch_Hydro_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), delimiter=',', skip_header=1)
+    imports = np.genfromtxt('Results/Dispatch_Imports_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), delimiter=',', skip_header=1)
+    battery_charge = np.genfromtxt('Results/Dispatch_BatteryCharge_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), delimiter=',', skip_header=1)
+    battery_discharge = np.genfromtxt('Results/Dispatch_BatteryDischarge_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), delimiter=',', skip_header=1)
     
-    Information(capacities, flexible, battery_charge, battery_discharge)
+    Information(capacities, hydrobio, imports, battery_charge, battery_discharge)
