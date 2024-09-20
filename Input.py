@@ -28,7 +28,7 @@ CallBack=True
 
 ###### NODAL LISTS ######
 Nodel = np.array(['KH', 'LAN', 'LAS', 'VH', 'VS', 'CACE', 'CACW', 'CACN', 'MAC', 'NAC', 'NEC', 'SAC', 'MY_I', 'MM_I', 'KH_I', 'LAS_I', 'LAN_I', 'CH_I', 'TH'])
-PVl =   np.array(['KH']*1 + ['LAN']*1 + ['LAS']*1 + ['VH']*2 + ['VS']*2 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1 + ['TH'])
+PVl =   np.array(['KH']*1 + ['LAN']*1 + ['LAS']*1 + ['VH']*1 + ['VS']*1 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1 + ['TH'])
 pv_lb_np = np.array([0.] + 2*[0.] + [0.] + [0.] + [3.5] + [3.] + [2.3] + [0.2] + [11.] + [9.6] + [6.7] + [0.]) #Thailand constraints based on 2037 capacity in PDP2024 draft
 pv_ub_np = np.array([1000.] + 2*[1000.] + [1000.] + [1000.] + 7*[1000.] + [0.])
 phes_lb_np = np.array([2.8] + [2*0.] + [2.4] + [2.4] + 5*[0.] + [1.] + [0.] + 7*[0.] + [0.]) # Lamtakong Jolabha Vadhana in Thailand (NEC) is 1000 MW
@@ -37,9 +37,9 @@ storage_lb_np = np.array(19*[0.])
 storage_ub_np = np.array(5*[20000.] + 7*[3000.] + 7*[0.])
 battery_lb_np = np.array([0.3] + [2*0.] + [0.] + [0.] + 5*[0.] + [0.] + [0.] + 7*[0.] + [0.]) 
 battery_ub_np = np.array(12*[300.] + 6*[0.] + [0.]) 
-Windl = np.array(['KH']*1 + ['LAN']*1 + ['LAS']*1 + ['VH']*1 + ['VS']*1 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1 + ['TH'])
-wind_lb_np = np.array([0.] + 2*[0.] + [0.] + [0.] + 7*[0.] + [0.]) 
-wind_ub_np = np.array([1000.] + 2*[1000.] + [1000.]+ [1000.] + 7*[1000.] + [0.])
+Windl = np.array(['KH']*1 + ['LAN']*1 + ['LAS']*1 + ['VH']*2 + ['VS']*2 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1 + ['TH'])
+wind_lb_np = np.array([0.] + 2*[0.] + [0.]*2 + [0.]*2 + 7*[0.] + [0.]) 
+wind_ub_np = np.array([1000.] + 2*[1000.] + [1000.]*2+ [1000.]*2 + 7*[1000.] + [0.])
 Interl = np.array([])
 inters_lb_np = np.array([])
 inters_ub_np = np.array([])
