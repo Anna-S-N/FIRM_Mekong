@@ -28,13 +28,13 @@ def Objective(x):
 def Callback_1(xk, convergence=None):
     #obj_value = Objective(xk)
 
-    with open('Results/History_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), 'a', newline='') as csvfile:
+    with open('Results/History_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), 'a', newline='') as csvfile:
         writer = csv.writer(csvfile)
         #writer.writerow([obj_value] + list(xk))
         writer.writerow(list(xk))
   
 def Init_callback():
-    with open('Results/History_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), 'w', newline='') as csvfile:
+    with open('Results/History_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), 'w', newline='') as csvfile:
         csv.writer(csvfile)
 
 if __name__=='__main__':
