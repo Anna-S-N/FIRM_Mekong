@@ -47,6 +47,7 @@ else:
 Windl = np.array(['KH']*1 + ['LAN']*1 + ['LAS']*1 + ['VH']*2 + ['VS']*2 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1 + ['TH'])
 wind_lb_np = np.array([0.] + 2*[0.] + [0.]*2 + [0.]*2 + 7*[0.] + [0.]) 
 wind_ub_np = np.array([1000.] + 2*[1000.] + [1000.]*2+ [1000.]*2 + 7*[1000.] + [0.])
+CInter_mask = np.array([])
 Interl = np.array([])
 inters_lb_np = np.array([])
 inters_ub_np = np.array([])
@@ -266,7 +267,6 @@ if 'Grid' in node:
     PVl_int = PVl_int[np.where(np.in1d(PVl, coverage)==True)[0]]
     Windl_int = Windl_int[np.where(np.in1d(Windl, coverage)==True)[0]]
     Nodel, PVl, Windl = [x[np.where(np.in1d(x, coverage)==True)[0]] for x in (Nodel, PVl, Windl)]
-    Windl_Viet_int = np.array([n_node[node] for node in ['VH', 'VS']], dtype=np.int64)[::2]
 
     ########## BUILD TRANSMISSION NETWORK VARIABLES ###############
 
@@ -414,6 +414,7 @@ if 'Grid' in node:
     # =============================================================================
 
 ###### DECISION VARIABLE LIST INDEXES ######
+Windl_Viet_int = np.array([n_node[node] for node in ['VH', 'VS']], dtype=np.int64)[::2]
 intervals, nodes = MLoad.shape # The no. of intervals equals the no. of rows in the MLoad variable. The no. of nodes equals the no. of columns in MLoad 
 years = int(resolution * intervals / 8760)
 pzones, wzones = (TSPV.shape[1], TSWind.shape[1]) # Number of solar and wind sites
