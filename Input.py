@@ -30,16 +30,16 @@ CallBack=True
 Nodel = np.array(['KH', 'LAN', 'LAS', 'VH', 'VS', 'CACE', 'CACW', 'CACN', 'MAC', 'NAC', 'NEC', 'SAC', 'MY_I', 'MM_I', 'KH_I', 'LAS_I', 'LAN_I', 'CH_I', 'TH'])
 PVl =   np.array(['KH']*1 + ['LAN']*1 + ['LAS']*1 + ['VH']*1 + ['VS']*1 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1 + ['TH'])
 pv_lb_np = np.array([0.] + 2*[0.] + [0.] + [0.] + [3.5] + [3.] + [2.3] + [0.2] + [11.] + [9.6] + [6.7] + [0.]) #Thailand constraints based on 2037 capacity in PDP2024 draft
-pv_ub_np = np.array([100000.] + 2*[100000.] + [100000.] + [100000.] + 7*[100000.] + [0.])
+pv_ub_np = np.array([500.] + 2*[500.] + [500.] + [500.] + 7*[500.] + [0.])
 phes_lb_np = np.array([2.8] + [2*0.] + [2.4] + [2.4] + 5*[0.] + [1.] + [0.] + 7*[0.] + [0.]) # Lamtakong Jolabha Vadhana in Thailand (NEC) is 1000 MW
-phes_ub_np = np.array([1000.] + 2*[1000.] + [1000.] + [1000.] + 7*[1000.] + 7*[0.] + [0.])
+phes_ub_np = np.array([500.] + 2*[500.] + [500.] + [500.] + 7*[500.] + 7*[0.] + [0.])
 storage_lb_np = np.array(19*[0.])
-storage_ub_np = np.array(12*[20000.] + 7*[0.])
+storage_ub_np = np.array(5*[20000.] + 7*[3000.] + 7*[0.])
 battery_lb_np = np.array([0.3] + [2*0.] + [0.] + [0.] + 5*[0.] + [0.] + [0.] + 7*[0.] + [0.]) 
 battery_ub_np = np.array(12*[100.] + 6*[0.] + [0.]) 
 Windl = np.array(['KH']*1 + ['LAN']*1 + ['LAS']*1 + ['VH']*1 + ['VS']*1 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1 + ['TH'])
 wind_lb_np = np.array([0.] + 2*[0.] + [0.] + [0.] + 7*[0.] + [0.]) 
-wind_ub_np = np.array([100000.] + 2*[239000.] + [155000.]+ [155000.] + 7*[13000.] + [0.])
+wind_ub_np = np.array([300.] + 2*[300.] + [300.]+ [300.] + 7*[300.] + [0.])
 Interl = np.array([])
 inters_lb_np = np.array([])
 inters_ub_np = np.array([])
@@ -71,9 +71,11 @@ if hydro_scenario == 'flexible':
 elif hydro_scenario == 'modelled_baseline':
     hydro_baseload = np.genfromtxt('Data/hydro_baseline.csv', delimiter=',', skip_header=1)
     CPeak = CBio + CWaste
+    CHydro*=0
 elif hydro_scenario == 'modelled_newbuild':
     hydro_baseload = np.genfromtxt('Data/hydro_newbuild.csv', delimiter=',', skip_header=1)
     CPeak = CBio + CWaste
+    CHydro*=0
 
 ###### CONSTRAINTS ######
 # Energy constraints
@@ -111,9 +113,13 @@ hydromax_weeks = 1000*CHydro * hydro_weekly_cf[::7*24, :] *7*24/1000 # Weekly en
 
 transmission_loss_factors = np.array([0.07, 0.03, 0.03, 0.07, 0.03, 0.07, 0.07, 0.07, 0.07, 0.07, 0.03, 0.03,
                    0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.03, 0.03, 0.07, 0.07, 0.03], dtype=np.float64) # HVDC from https://www.adb.org/sites/default/files/publication/846471/power-trade-greater-mekong-subregion.pdf
+#transmission_loss_factors = np.array([0.07, 0.03, 0.03, 0.07, 0.03, 0.07, 0.07, 0.07, 0.07, 0.07, 0.03, 0.03,
+#                  0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.07, 0.03], dtype=np.float64)
 hvdc_mask = (transmission_loss_factors == 0.03)
 DCdistance = np.array([550, 350, 640, 760, 460, 670, 520, 1280, 590, 470, 1180, 530,
                    670, 70, 110, 90, 360, 360, 440, 450, 280, 520, 320, 370], dtype=np.float64)
+#DCdistance = np.array([550, 350, 640, 760, 460, 670, 520, 1280, 590, 470, 1180, 530,
+#                   670, 70, 110, 90, 360, 360, 440, 450], dtype=np.float64)
 DCloss = DCdistance * transmission_loss_factors * pow(10, -3)
 
 ###### Simulation Period ######
@@ -132,7 +138,7 @@ if 'Grid' not in node:
         CHydro, CBaseload, CPeak = [x[np.where(np.in1d(Nodel, coverage)==True)[0]].sum(keepdims=True) for x in (CHydro, CBaseload, CPeak)]
 
         hydromax_weeks = hydromax_weeks[:, np.where(np.in1d(Nodel, coverage)==True)[0]].mean(axis=1, keepdims=True)
-        hydro_baseload = hydro_baseload[:, np.where(np.in1d(Nodel, coverage)==True)[0]].mean(axis=1, keepdims=True)
+        hydro_baseload = hydro_baseload[:, np.where(np.in1d(Nodel, coverage)==True)[0]].sum(axis=1, keepdims=True)
         hydro_weekly_cf = hydro_weekly_cf[:, np.where(np.in1d(Nodel, coverage)==True)[0]].mean(axis=1, keepdims=True)
 
         pv_lb_np, pv_ub_np = [x[np.where(np.in1d(PVl, coverage)==True)[0]].sum(keepdims=True) for x in (pv_lb_np, pv_ub_np)]
@@ -195,11 +201,14 @@ if 'Grid' in node:
         CHydro[np.where(Nodel=='TH')[0][0]], CBaseload[np.where(Nodel=='TH')[0][0]], CPeak[np.where(Nodel=='TH')[0][0]] = [x[np.where(np.in1d(Nodel, TH_coverage)==True)[0]].sum() for x in (CHydro, CBaseload, CPeak)]
 
         hydromax_weeks[:, np.where(Nodel=='TH')[0][0]] = hydromax_weeks[:, np.where(np.in1d(Nodel, TH_coverage)==True)[0]].mean(axis=1)
+        hydro_baseload[:, np.where(Nodel=='TH')[0][0]] = hydro_baseload[:, np.where(np.in1d(Nodel, TH_coverage)==True)[0]].sum(axis=1)
+        hydro_weekly_cf[:, np.where(Nodel=='TH')[0][0]] = hydro_weekly_cf[:, np.where(np.in1d(Nodel, TH_coverage)==True)[0]].mean(axis=1)
 
         pv_lb_np[np.where(PVl=='TH')[0][0]], pv_ub_np[np.where(PVl=='TH')[0][0]] = [x[np.where(np.in1d(PVl, TH_coverage)==True)[0]].sum() for x in (pv_lb_np, pv_ub_np)]
         wind_lb_np[np.where(Windl=='TH')[0][0]], wind_ub_np[np.where(Windl=='TH')[0][0]] = [x[np.where(np.in1d(Windl, TH_coverage)==True)[0]].sum() for x in (wind_lb_np, wind_ub_np)]
         phes_lb_np[np.where(Nodel=='TH')[0][0]], phes_ub_np[np.where(Nodel=='TH')[0][0]] = [x[np.where(np.in1d(Nodel, TH_coverage)==True)[0]].sum() for x in (phes_lb_np, phes_ub_np)]
         storage_lb_np[np.where(Nodel=='TH')[0][0]], storage_ub_np[np.where(Nodel=='TH')[0][0]] = [x[np.where(np.in1d(Nodel, TH_coverage)==True)[0]].sum() for x in (storage_lb_np, storage_ub_np)]
+        battery_lb_np[np.where(Nodel=='TH')[0][0]], battery_ub_np[np.where(Nodel=='TH')[0][0]] = [x[np.where(np.in1d(Nodel, coverage)==True)[0]].sum() for x in (battery_lb_np, battery_ub_np)]
 
         coverage = np.array(['KH', 'LAN', 'LAS', 'VH', 'VS', 'MY_I','MM_I','CH_I','TH'])
 
@@ -250,6 +259,7 @@ if 'Grid' in node:
     PVl_int = PVl_int[np.where(np.in1d(PVl, coverage)==True)[0]]
     Windl_int = Windl_int[np.where(np.in1d(Windl, coverage)==True)[0]]
     Nodel, PVl, Windl = [x[np.where(np.in1d(x, coverage)==True)[0]] for x in (Nodel, PVl, Windl)]
+    Windl_Viet_int = np.array([n_node[node] for node in ['VH', 'VS']], dtype=np.int64)
 
     ########## BUILD TRANSMISSION NETWORK VARIABLES ###############
 
@@ -461,41 +471,32 @@ def weekly_sum(original_array):
 @njit()
 def F(S):
     # Simulation with baseload
-    Deficit1 = Reliability(S, flexible=np.zeros((intervals, nodes), dtype=np.float64), agg_storage=True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64)) # Sj-EDE(t, j), MW
-    hydrobio = np.zeros((intervals,nodes), dtype=np.float64)
-    for i in range(nodes):
-        hydrobio[:,i] = np.clip(Deficit1[:, i], 0, CPeak[i]*1000)
+    #print(pidx,widx,spidx,seidx,bpidx,bhidx,iidx,len(S.x))
+    Deficit1 = Reliability(S, flexible=np.zeros((intervals, nodes), dtype=np.float64), agg_storage=True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64)) # Sj-EDE(t, j), MW
+    hydrobio1 = np.maximum(Deficit1,CPeak*1000)
 
     # Simulation with baseload + flexible hydro and bio
     if 'Grid' in node:
-        Deficit2 = Reliability(S, flexible=hydrobio, agg_storage=True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64)) # Sj-EDE(t, j), MW 
+        Deficit2 = Reliability(S, flexible=hydrobio1, agg_storage=True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64)) # Sj-EDE(t, j), MW 
     else:
         Deficit2 = np.zeros((intervals,nodes), dtype=np.float64)
     
     # Clip all of the profiles based on capacity at each node
-    num_rows, num_cols = Deficit1.shape
     Flexible = Deficit1-Deficit2
-    imports = np.zeros((intervals,nodes), dtype=np.float64)
-    hydrobio = np.zeros((intervals,nodes), dtype=np.float64)
-    hydro = np.zeros((intervals,nodes), dtype=np.float64)
-    for i in range(num_rows):
-        for j in range(num_cols):
-            imports[i,j] = max(min(Deficit2[i, j],S.CInter[j]*1000),0)
-            hydrobio[i, j] = max(min((Flexible)[i, j],CPeak[j]*1000),0)
-            hydro[i,j] = max(min(hydrobio[i, j],CHydro[j]*1000),0)
-    hydro = hydro/efficiency
-    hydrobio = hydrobio/efficiency
-    
+    imports = np.minimum(Deficit2,S.CInter*1000)
+    hydrobio = np.minimum(Flexible,CPeak*1000)
+    hydro = np.minimum(hydrobio,CHydro*1000)
+
     # Constrain weekly generation from hydro
     Hydro_Weekly = weekly_sum(hydro)
     PenHydro = np.sum(np.maximum(Hydro_Weekly - hydromax_weeks, 0)) *1000000 # Create positive, large penalty number
 
-    GHydroBio = (hydrobio.sum() + hydro_baseload.sum()) * resolution / years # MWh p.a.  
-    GImports = imports.sum() * resolution / years # MWh p.a.  
+    GHydroBio = (hydrobio.sum() / efficiency + hydro_baseload.sum()) * resolution / years  # MWh p.a.  
+    GImports = imports.sum() * resolution / years / efficiency # MWh p.a.  
     GBaseload = baseload.sum() * resolution / years
 
     # Deficit calculation
-    Deficit = Reliability(S, flexible=hydrobio+imports, agg_storage=True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64)) # Sj-EDE(t, j), GW to MW
+    Deficit = Reliability(S, flexible=hydrobio+imports, agg_storage=True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64)) # Sj-EDE(t, j), GW to MW
     
     PenDeficit = np.maximum(0., Deficit.sum() * resolution - allowance) * 1000000 # MWh
 
@@ -509,6 +510,15 @@ def F(S):
     loss[network_mask] = S.TDCabs.sum(axis=0) * DCloss[network_mask]
     loss = loss.sum() * resolution / years # MWh p.a.
     LCOE = cost / np.abs(energy - loss)
+
+    """ print("Costs", cost/ np.abs(energy - loss))
+    print("Tech: ", _/ np.abs(energy - loss))
+    print("Energies: ", energy, loss)
+    
+    netload = S.MLoad.sum(axis=1)- S.GPV.sum(axis=1)- S.GWind.sum(axis=1)- S.baseload.sum(axis=1)- S.hydro_baseload.sum(axis=1)- hydrobio.sum(axis=1)- imports.sum(axis=1)- S.Discharge.sum(axis=1) + S.Charge.sum(axis=1)+ S.Spillage.sum(axis=1) - S.Deficit.sum(axis=1)
+    balance = np.stack([S.MLoad.sum(axis=1), S.GPV.sum(axis=1), S.GWind.sum(axis=1), S.baseload.sum(axis=1), S.hydro_baseload.sum(axis=1), hydrobio.sum(axis=1), imports.sum(axis=1), S.Discharge.sum(axis=1), -1*S.Charge.sum(axis=1), S.Spillage.sum(axis=1), S.Storage.sum(axis=1), netload], axis=1)
+    np.savetxt('Results/Balance.csv', balance, fmt='%f', delimiter=',', newline='\n')    
+    np.savetxt('Results/TDC.csv', TDC, fmt='%f', delimiter=',', newline='\n')   """
     
     return LCOE, (PenHydro+PenDeficit)
 
@@ -536,10 +546,12 @@ solution_spec = [
     ('CHVDC', float64[:]),
     ('GPV', float64[:, :]), 
     ('GWind', float64[:, :]), 
+    ('GWind_sites', float64[:, :]), 
     ('efficiency', float64),
     ('Nodel_int', int64[:]), 
     ('PVl_int', int64[:]),
     ('Windl_int', int64[:]),
+    ('Windl_Viet_int', int64[:]),
     ('baseload', float64[:, :]),
     ('hydro_baseload', float64[:, :]),
     ('GHydro', float64[:, :]), 
@@ -595,13 +607,14 @@ class Solution:
         self.network, self.directconns = network, directconns
         self.trans_tdc_mask = trans_tdc_mask
         self.hvdc_mask = hvdc_mask
+        self.Windl_Viet_int = Windl_Viet_int
         
         self.MLoad = MLoad
 
         self.CPV = x[: pidx]  # CPV(i), GW
         self.CWind = x[pidx: widx]  # CWind(i), GW
 
-        _CInter = x[seidx:iidx]
+        _CInter = x[bhidx:iidx]
         CInter = np.zeros(len(CInter_mask), dtype=np.float64)
         counter = 0
         for i in range(len(CInter)):
@@ -621,6 +634,7 @@ class Solution:
 
         GPV = TSPV * CPV_tiled * 1000.  # GPV(i, t), GW to MW
         GWind = TSWind * CWind_tiled * 1000.  # GWind(i, t), GW to MW
+        self.GWind_sites = GWind
 
         self.GPV, self.GWind = np.empty((intervals, nodes), np.float64), np.empty((intervals, nodes), np.float64)
         for i, j in enumerate(Nodel_int):
@@ -655,9 +669,9 @@ class Solution:
         self.evaluated=True
 
 if __name__ == '__main__':
-    x = np.genfromtxt("Results/Optimisation_resultx_Super13_3_10_7.csv", delimiter=',')
+    x = np.genfromtxt("Results/Test.csv", delimiter=',')
     def test():
-        x = np.random.rand(len(lb))*(ub-lb)+ub
+        #x = np.random.rand(len(lb))*(ub-lb)+ub
         S = Solution(x)
         S._evaluate()
         print(S.Lcoe, S.Penalties)

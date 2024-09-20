@@ -199,12 +199,12 @@ def Flexible(capacities):
     # fill hydro with agg_storage = True
 
     # Calculate initial deficit
-    Deficit1 = Reliability(S, flexible=np.zeros((intervals,nodes), dtype=np.float64), agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+    Deficit1 = Reliability(S, flexible=np.zeros((intervals,nodes), dtype=np.float64), agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
     hydrobio = columnwise_clip(Deficit1, S.CPeak*1000)
     np.savetxt('Results/Test3.csv', hydrobio, fmt='%f', delimiter=',', newline='\n')
     
     
-    Deficit2 = Reliability(S, flexible=hydrobio, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+    Deficit2 = Reliability(S, flexible=hydrobio, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
     
     GImports = Deficit2.sum() / years / efficiency
     GHydroBio = Deficit1.sum() / years / efficiency - GImports
@@ -227,12 +227,12 @@ def Flexible(capacities):
         hydro = np.zeros(intervals, dtype=np.float64)
         imports = np.zeros(intervals, dtype=np.float64)
         flexible = flexible_2d(hydro, imports, hydro_prop, imports_prop)
-        Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+        Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
         # start filling
         h,i = fill_deficit(Deficit.copy().sum(axis=1),hydro.copy(),imports.copy(), Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,True,False)
         flexible = flexible_2d(h, i, hydro_prop, imports_prop)
         # check deficit again
-        Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+        Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
         Storage = S.Storage
         Charge = S.Charge
         
@@ -245,7 +245,7 @@ def Flexible(capacities):
             print("Total deficit:", Deficit.sum(), ", No. of deficit:", len(np.where(Deficit > 0)[0]), ", Step =", step)
             h,i = fill_deficit(Deficit.copy().sum(axis=1),h.copy(),i.copy(), Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,True,False)
             flexible = flexible_2d(h, i, hydro_prop, imports_prop)
-            Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+            Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
             Storage = S.Storage
             Charge = S.Charge
             step += 1
@@ -258,13 +258,13 @@ def Flexible(capacities):
         hydro = hydrobio.sum(axis=1)
         imports = np.zeros(intervals, dtype=np.float64)
         flexible = flexible_2d(hydro, imports, hydro_prop, imports_prop)
-        Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+        Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
         # start filling
         
         h,i = fill_deficit(Deficit.copy().sum(axis=1),hydro.copy(),imports.copy(), Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,False,True)
         flexible = flexible_2d(h, i, hydro_prop, imports_prop)
         # check deficit again
-        Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+        Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
         Storage = S.Storage
         Charge = S.Charge
         
@@ -277,7 +277,7 @@ def Flexible(capacities):
             print("Total deficit:", Deficit.sum(), ", No. of deficit:", len(np.where(Deficit > 0)[0]), ", Step =", step)
             h,i = fill_deficit(Deficit.copy().sum(axis=1),h.copy(),i.copy(), Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,False,True)
             flexible = flexible_2d(h, i, hydro_prop, imports_prop)
-            Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+            Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
             Storage = S.Storage
             Charge = S.Charge
             step += 1
@@ -287,11 +287,11 @@ def Flexible(capacities):
         if Deficit.sum() < allowance*years:
             hydro = np.zeros(intervals, dtype=np.float64)
             flexible = flexible_2d(hydro, i, hydro_prop, imports_prop)
-            Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+            Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
             h,i = fill_deficit(Deficit.copy().sum(axis=1),hydro.copy(),imports.copy(), Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,True,False)
             flexible = flexible_2d(h, i, hydro_prop, imports_prop)
             # check deficit again
-            Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+            Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
             Storage = S.Storage
             Charge = S.Charge
             
@@ -304,7 +304,7 @@ def Flexible(capacities):
                 print("Total deficit:", Deficit.sum(), ", No. of deficit:", len(np.where(Deficit > 0)[0]), ", Step =", step)
                 h,i = fill_deficit(Deficit.copy().sum(axis=1),h.copy(),i.copy(), Storage.copy().sum(axis=1),S.CPeak.sum()*1000,S.CInter.sum()*1000,Storage_cap,S.efficiency,9999,Charge.copy().sum(axis=1),Charge_cap,True,False)
                 flexible = flexible_2d(h, i, hydro_prop, imports_prop)
-                Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+                Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
                 Storage = S.Storage
                 Charge = S.Charge
                 step += 1
@@ -316,7 +316,7 @@ def Flexible(capacities):
     flexible = flexible_2d(h_remove_spillage, i, hydro_prop, imports_prop)
     
     # check deficit again
-    Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64))
+    Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
         
     print("Final hydro generation:", h_remove_spillage.sum()/1e6/years)
     print("Remaining deficit:", Deficit.sum()/1e6)
@@ -324,9 +324,9 @@ def Flexible(capacities):
     # fill battery charge whenever possible
     
     # set everything to zero first
-    BatteryCharge = np.zeros((intervals, nodes), dtype=np.float64)
-    BatteryDischarge = np.zeros((intervals, nodes), dtype=np.float64)
-    BatteryStorage = np.zeros((intervals, nodes), dtype=np.float64)
+    BatteryCharge = np.zeros(intervals, dtype=np.float64)
+    BatteryDischarge = np.zeros(intervals, dtype=np.float64)
+    BatteryStorage = np.zeros(intervals, dtype=np.float64)
     
     CBS = S.CBS.sum() * 1000
     CBP = S.CBP.sum() * 1000

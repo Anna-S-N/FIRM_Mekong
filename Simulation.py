@@ -32,7 +32,7 @@ def Reliability(solution, flexible, agg_storage, battery_charge, battery_dischar
     else:
         Pcapacity = solution.CPHP * 1000
         Scapacity = solution.CPHS * 1000
-        battery_prop = solution.CPB / solution.CPB.sum()
+        battery_prop = solution.CBP / solution.CBP.sum()
 
         Netload = Netload + battery_charge[:, np.newaxis]*battery_prop[np.newaxis,:] - battery_discharge[:, np.newaxis]*battery_prop[np.newaxis,:]
 

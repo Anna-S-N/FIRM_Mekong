@@ -12,6 +12,11 @@ wind_fom = 29.5 # USD/kW p.a., No great data recent for ASEAN, so just used same
 wind_vom = 0 # USD/MWh p.a.
 wind_lifetime = 25
 
+wind_offshore_capex = 3461 # USD/kW, Mean global offshore wind cost, IRENA Renewable Power Generation Costs in 2022: https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2023/Aug/IRENA_Renewable_power_generation_costs_in_2022.pdf
+wind_offshore_fom = 67 # USD/kW p.a., No great data recent for ASEAN, so just used same assumption as 7th ASEAN Energy Outlook:https://asean.org/wp-content/uploads/2023/04/The-7th-ASEAN-Energy-Outlook-2022.pdf
+wind_offshore_vom = 0 # USD/MWh p.a.
+wind_offshore_lifetime = 25
+
 # Short distance HVAC costs:
 # transmission_capex = 4879 # AUD/MW-km 
 # transmission_fom = 48.79 # AUD/MW-km p.a.
@@ -34,10 +39,8 @@ transmission_hvdc_fom = 3.2 * 0.7 # USD/MW-km p.a.
 transmission_hvdc_vom = 0 # USD/MWh p.a.
 transmission_hvdc_lifetime = 60
 
-# Back-to-back HVDC substation
-converter_capex = 839000000 / 3000 # USD/MW each
-# HVAC substation
-substation_hvac = 14100000 / 1500 # USD/MW each
+# HVDC converter station
+converter_capex = 160 * 0.7 # USD/kW each
 converter_fom = 1.6 * 0.7 # USD/kW each p.a.
 converter_vom = 0 # USD/MWh p.a.
 converter_lifetime = 60
@@ -66,7 +69,7 @@ DR = 0.05 # real discount rate: WACC between 5-6% in ASEAN countries currently h
 UnitCosts = np.array([pv_capex,pv_fom,pv_vom,pv_lifetime,wind_capex,wind_fom,wind_vom,wind_lifetime,transmission_hvac_capex,transmission_hvac_fom,transmission_hvac_vom,transmission_hvac_lifetime,
                        storage_capexP,stoarge_capexE,storage_fom,storage_vom,storage_replace,replace,storage_lifetime,battery_capexP,battery_capexE,battery_fom,battery_lifetime,
                        hydro_purchase,transmission_hvdc_capex,transmission_hvdc_fom,transmission_hvdc_vom,transmission_hvdc_lifetime,converter_capex,converter_fom,converter_vom,converter_lifetime,
-                       import_purchase,nuclear_purchase,transmission_hvac_transformers,substation_hvac,DR], dtype=np.float64)
+                       import_purchase,nuclear_purchase,transmission_hvac_transformers,wind_offshore_capex,wind_offshore_fom,wind_offshore_vom,wind_offshore_lifetime,DR], dtype=np.float64)
 
 @njit()
 def annulization(capex, fom, vom, life, dr, p, e):
@@ -104,7 +107,14 @@ def annulization_transmission(capex, transformer_capex, fom, vom, life, dr, p, e
 @njit()
 def calculate_costs(S, GDischarge, GHydro, GImports, GBaseload):
     PV_costs = annulization(S.UnitCosts[0],S.UnitCosts[1],S.UnitCosts[2],S.UnitCosts[3],S.UnitCosts[-1],sum(S.CPV),S.GPV.sum()/S.years)
-    wind_costs = annulization(S.UnitCosts[4],S.UnitCosts[5],S.UnitCosts[6],S.UnitCosts[7],S.UnitCosts[-1],sum(S.CWind),S.GWind.sum()/S.years)
+
+    wind_costs = 0
+    GWind_sites = S.GWind_sites.sum(axis=0)
+    for i in range(len(GWind_sites)):
+        if i in S.Windl_Viet_int: # Offshore wind for Vietnam
+            wind_costs += annulization(S.UnitCosts[4],S.UnitCosts[5],S.UnitCosts[6],S.UnitCosts[7],S.UnitCosts[-1],S.CWind[i],GWind_sites[i]/S.years)
+        else:
+            wind_costs += annulization(S.UnitCosts[35],S.UnitCosts[36],S.UnitCosts[37],S.UnitCosts[38],S.UnitCosts[-1],S.CWind[i],GWind_sites[i]/S.years)
     
     transmission_costs = 0
     for i in range(len(S.CHVDC)):
@@ -118,9 +128,9 @@ def calculate_costs(S, GDischarge, GHydro, GImports, GBaseload):
         if S.hvdc_mask[i]:
             converter_costs = 2 * annulization(S.UnitCosts[28],S.UnitCosts[29],S.UnitCosts[30],S.UnitCosts[31],S.UnitCosts[-1],sum(S.CHVDC),0)
             transmission_costs += converter_costs
-        else:
+        """ else:
             substation_costs = 2 * annulization(S.UnitCosts[35],S.UnitCosts[29],S.UnitCosts[30],S.UnitCosts[31],S.UnitCosts[-1],sum(S.CHVDC),0)
-            transmission_costs += substation_costs
+            transmission_costs += substation_costs """
 
     pv_phes = (1-(1+S.UnitCosts[-1])**(-1*S.UnitCosts[18]))/S.UnitCosts[-1]
     phes_costs = (S.UnitCosts[12] * S.CPHP.sum() * pow(10,6) + S.UnitCosts[13] * S.CPHS.sum() * pow(10,6)) / pv_phes \
