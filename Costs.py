@@ -117,7 +117,7 @@ def calculate_costs(S, GDischarge, GHydro, GImports, GBaseload):
             PV_Wind_transmission_cost += annulization_transmission(S.UnitCosts[8],S.UnitCosts[34],S.UnitCosts[9],S.UnitCosts[10],S.UnitCosts[11],S.UnitCosts[-1],S.CWind[i],0,20)
         else: # Offshore wind for Vietnam
             wind_costs += annulization(S.UnitCosts[35],S.UnitCosts[36],S.UnitCosts[37],S.UnitCosts[38],S.UnitCosts[-1],S.CWind[i],GWind_sites[i]/S.years)
-            PV_Wind_transmission_cost += annulization_transmission(4000*0.7,0,40*0.7,0,30,S.UnitCosts[-1],S.CWind[i],0,20) # Submarine cable offshore
+            PV_Wind_transmission_cost += annulization_transmission(4000*0.7,0,40*0.7,0,30,S.UnitCosts[-1],S.CWind[i],0,100) # Submarine cable offshore
     
     transmission_costs = PV_Wind_transmission_cost
     for i in range(len(S.CHVDC)):
