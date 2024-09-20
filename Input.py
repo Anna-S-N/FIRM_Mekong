@@ -36,7 +36,7 @@ phes_ub_np = np.array([500.] + 2*[500.] + [500.] + [500.] + 7*[500.] + 7*[0.] + 
 storage_lb_np = np.array(19*[0.])
 storage_ub_np = np.array(5*[20000.] + 7*[3000.] + 7*[0.])
 battery_lb_np = np.array([0.3] + [2*0.] + [0.] + [0.] + 5*[0.] + [0.] + [0.] + 7*[0.] + [0.]) 
-battery_ub_np = np.array(12*[300.] + 6*[0.] + [0.]) 
+battery_ub_np = np.array(12*[500.] + 6*[0.] + [0.]) 
 Windl = np.array(['KH']*1 + ['LAN']*1 + ['LAS']*1 + ['VH']*2 + ['VS']*2 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1 + ['TH'])
 wind_lb_np = np.array([0.] + 2*[0.] + [0.]*2 + [0.]*2 + 7*[0.] + [0.]) 
 wind_ub_np = np.array([1000.] + 2*[1000.] + [1000.]*2+ [1000.]*2 + 7*[1000.] + [0.])
@@ -438,7 +438,7 @@ storage_lb = list(storage_lb_np)
 storage_ub = list(storage_ub_np)
 battery_lb = list(battery_lb_np)
 battery_ub = list(battery_ub_np)
-bduration_lb = list([0.]*nodes)
+bduration_lb = list([1.]*nodes)
 bduration_ub = list([24.]*nodes)
 inters_lb = list(inters_lb_np)
 inters_ub = list(inters_ub_np)
@@ -473,7 +473,7 @@ def F(S):
     # Simulation with baseload
     #print(pidx,widx,spidx,seidx,bpidx,bhidx,iidx,len(S.x))
     Deficit1 = Reliability(S, flexible=np.zeros((intervals, nodes), dtype=np.float64), agg_storage=True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64)) # Sj-EDE(t, j), MW
-    hydrobio1 = np.maximum(Deficit1,CPeak*1000)
+    hydrobio1 = np.maximum(np.minimum(Deficit1,CPeak*1000),0)
 
     # Simulation with baseload + flexible hydro and bio
     if 'Grid' in node:
@@ -518,8 +518,15 @@ def F(S):
     netload = S.MLoad.sum(axis=1)- S.GPV.sum(axis=1)- S.GWind.sum(axis=1)- S.baseload.sum(axis=1)- S.hydro_baseload.sum(axis=1)- hydrobio.sum(axis=1)- imports.sum(axis=1)- S.Discharge.sum(axis=1) + S.Charge.sum(axis=1)+ S.Spillage.sum(axis=1) - S.Deficit.sum(axis=1)
     balance = np.stack([S.MLoad.sum(axis=1), S.GPV.sum(axis=1), S.GWind.sum(axis=1), S.baseload.sum(axis=1), S.hydro_baseload.sum(axis=1), hydrobio.sum(axis=1), imports.sum(axis=1), S.Discharge.sum(axis=1), -1*S.Charge.sum(axis=1), S.Spillage.sum(axis=1), S.Storage.sum(axis=1), netload], axis=1)
     np.savetxt('Results/Balance.csv', balance, fmt='%f', delimiter=',', newline='\n')    
-    np.savetxt('Results/TDC.csv', TDC, fmt='%f', delimiter=',', newline='\n')   """
-    
+    np.savetxt('Results/TDC.csv', TDC, fmt='%f', delimiter=',', newline='\n')
+    np.savetxt('Results/hydrobio1.csv', hydrobio1, fmt='%f', delimiter=',', newline='\n')
+    np.savetxt('Results/hydrobio.csv', hydrobio, fmt='%f', delimiter=',', newline='\n')
+    np.savetxt('Results/imports.csv', imports, fmt='%f', delimiter=',', newline='\n')
+    np.savetxt('Results/Deficit1.csv', Deficit1, fmt='%f', delimiter=',', newline='\n')
+    np.savetxt('Results/Deficit2.csv', Deficit2, fmt='%f', delimiter=',', newline='\n')
+    np.savetxt('Results/hydro_weekly.csv', Hydro_Weekly, fmt='%f', delimiter=',', newline='\n')
+    np.savetxt('Results/hydromax_weeks.csv', hydromax_weeks, fmt='%f', delimiter=',', newline='\n')"""
+
     return LCOE, (PenHydro+PenDeficit)
 
 solution_spec = [

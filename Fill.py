@@ -190,7 +190,10 @@ def save(hydro,imports, discharge,charge):
     return array_2d """
 
 def flexible_2d(hydro, imports, hydro_prop, imports_prop):
-    flexible = hydro[:, np.newaxis]*hydro_prop[np.newaxis, :] + imports[:, np.newaxis]*imports_prop[np.newaxis, :]
+    if imports_prop != None:
+        flexible = hydro[:, np.newaxis]*hydro_prop[np.newaxis, :] + imports[:, np.newaxis]*imports_prop[np.newaxis, :]
+    else:
+        flexible = hydro[:, np.newaxis]*hydro_prop[np.newaxis, :]
     return flexible
 
 def Flexible(capacities):    
@@ -219,7 +222,7 @@ def Flexible(capacities):
     Charge_cap = (S.CPHP.sum() + S.CBP.sum()) * pow(10, 3)
 
     hydro_prop = S.CPeak / S.CPeak.sum()
-    imports_prop = S.CInter / S.CInter.sum()
+    imports_prop = S.CInter / S.CInter.sum() if S.CInter.sum() > 0 else None
     
     if (GImports == 0):
         print("HYDRO ONLY")
