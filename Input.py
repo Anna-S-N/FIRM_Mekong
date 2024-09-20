@@ -17,7 +17,7 @@ parser.add_argument('-p', default=8, type=int, required=False, help='popsize=2, 
 parser.add_argument('-m', default=0.5, type=float, required=False, help='mutation=0.5')
 parser.add_argument('-r', default=0.3, type=float, required=False, help='recombination=0.3')
 parser.add_argument('-e', default=3, type=int, required=False, help='per-capita electricity: 3, 10, 20, and 99 (PDP projections) MWh')
-parser.add_argument('-n', default='TH_Iso_Grid', type=str, required=False, help='Mekong_Grid, TH_Iso_Grid, TH_Imp_Grid, KH, LA, VH, VS, TH ...') # TH_Iso = Isolated Thailand network, TH_imp = Thailand w imports, Mekong = Mekong Power Grid
+parser.add_argument('-n', default='TH_Iso_Grid', type=str, required=False, help='Mekong_Grid, TH_Iso_Grid, TH_Imp_Grid, Vietnam_Iso_Grid, Laos_Iso_Grid, KH, LA, VH, VS, TH ...') # TH_Iso = Isolated Thailand network, TH_imp = Thailand w imports, Mekong = Mekong Power Grid
 parser.add_argument('-s', default='nuclear', type=str, required=False, help='nuclear, no_nuclear')
 parser.add_argument('-f', default='flexible', type=str, required=False, help='flexible, modelled_baseline, modelled_newbuild')
 args = parser.parse_args()
@@ -28,18 +28,18 @@ CallBack=True
 
 ###### NODAL LISTS ######
 Nodel = np.array(['KH', 'LAN', 'LAS', 'VH', 'VS', 'CACE', 'CACW', 'CACN', 'MAC', 'NAC', 'NEC', 'SAC', 'MY_I', 'MM_I', 'KH_I', 'LAS_I', 'LAN_I', 'CH_I', 'TH'])
-PVl =   np.array(['KH']*1 + ['LAN']*1 + ['LAS']*1 + ['VH']*1 + ['VS']*1 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1 + ['TH'])
+PVl =   np.array(['KH']*1 + ['LAN']*1 + ['LAS']*1 + ['VH']*2 + ['VS']*2 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1 + ['TH'])
 pv_lb_np = np.array([0.] + 2*[0.] + [0.] + [0.] + [3.5] + [3.] + [2.3] + [0.2] + [11.] + [9.6] + [6.7] + [0.]) #Thailand constraints based on 2037 capacity in PDP2024 draft
-pv_ub_np = np.array([500.] + 2*[500.] + [500.] + [500.] + 7*[500.] + [0.])
+pv_ub_np = np.array([1000.] + 2*[1000.] + [1000.] + [1000.] + 7*[1000.] + [0.])
 phes_lb_np = np.array([2.8] + [2*0.] + [2.4] + [2.4] + 5*[0.] + [1.] + [0.] + 7*[0.] + [0.]) # Lamtakong Jolabha Vadhana in Thailand (NEC) is 1000 MW
 phes_ub_np = np.array([500.] + 2*[500.] + [500.] + [500.] + 7*[500.] + 7*[0.] + [0.])
 storage_lb_np = np.array(19*[0.])
 storage_ub_np = np.array(5*[20000.] + 7*[3000.] + 7*[0.])
 battery_lb_np = np.array([0.3] + [2*0.] + [0.] + [0.] + 5*[0.] + [0.] + [0.] + 7*[0.] + [0.]) 
-battery_ub_np = np.array(12*[100.] + 6*[0.] + [0.]) 
+battery_ub_np = np.array(12*[300.] + 6*[0.] + [0.]) 
 Windl = np.array(['KH']*1 + ['LAN']*1 + ['LAS']*1 + ['VH']*1 + ['VS']*1 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1 + ['TH'])
 wind_lb_np = np.array([0.] + 2*[0.] + [0.] + [0.] + 7*[0.] + [0.]) 
-wind_ub_np = np.array([300.] + 2*[300.] + [300.]+ [300.] + 7*[300.] + [0.])
+wind_ub_np = np.array([1000.] + 2*[1000.] + [1000.]+ [1000.] + 7*[1000.] + [0.])
 Interl = np.array([])
 inters_lb_np = np.array([])
 inters_ub_np = np.array([])
@@ -259,7 +259,7 @@ if 'Grid' in node:
     PVl_int = PVl_int[np.where(np.in1d(PVl, coverage)==True)[0]]
     Windl_int = Windl_int[np.where(np.in1d(Windl, coverage)==True)[0]]
     Nodel, PVl, Windl = [x[np.where(np.in1d(x, coverage)==True)[0]] for x in (Nodel, PVl, Windl)]
-    Windl_Viet_int = np.array([n_node[node] for node in ['VH', 'VS']], dtype=np.int64)
+    Windl_Viet_int = np.array([n_node[node] for node in ['VH', 'VS']], dtype=np.int64)[::2]
 
     ########## BUILD TRANSMISSION NETWORK VARIABLES ###############
 
@@ -482,7 +482,7 @@ def F(S):
         Deficit2 = np.zeros((intervals,nodes), dtype=np.float64)
     
     # Clip all of the profiles based on capacity at each node
-    Flexible = Deficit1-Deficit2
+    Flexible = np.maximum(Deficit1-Deficit2,0)
     imports = np.minimum(Deficit2,S.CInter*1000)
     hydrobio = np.minimum(Flexible,CPeak*1000)
     hydro = np.minimum(hydrobio,CHydro*1000)

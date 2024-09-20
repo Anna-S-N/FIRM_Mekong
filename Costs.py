@@ -45,8 +45,9 @@ converter_fom = 1.6 * 0.7 # USD/kW each p.a.
 converter_vom = 0 # USD/MWh p.a.
 converter_lifetime = 60
 
-storage_capexP = 1136 * 0.7 # USD/kW # 
-stoarge_capexE = 34 * 0.7 # USD/kWh
+# Assume class A site, scaled to US 2024 dollars
+storage_capexP = 530/0.83 # USD/kW # 
+stoarge_capexE = 47/0.83 # USD/kWh
 storage_fom = 8.21 # USD/kW p.a.
 storage_vom = 0.3 # USD/MWh p.a.
 storage_replace = 112000 # USD per replace
@@ -107,16 +108,18 @@ def annulization_transmission(capex, transformer_capex, fom, vom, life, dr, p, e
 @njit()
 def calculate_costs(S, GDischarge, GHydro, GImports, GBaseload):
     PV_costs = annulization(S.UnitCosts[0],S.UnitCosts[1],S.UnitCosts[2],S.UnitCosts[3],S.UnitCosts[-1],sum(S.CPV),S.GPV.sum()/S.years)
-
+    PV_Wind_transmission_cost = annulization_transmission(S.UnitCosts[8],S.UnitCosts[34],S.UnitCosts[9],S.UnitCosts[10],S.UnitCosts[11],S.UnitCosts[-1],sum(S.CPV),0,20)
     wind_costs = 0
     GWind_sites = S.GWind_sites.sum(axis=0)
     for i in range(len(GWind_sites)):
-        if i in S.Windl_Viet_int: # Offshore wind for Vietnam
+        if i not in S.Windl_Viet_int: # Onshore wind 
             wind_costs += annulization(S.UnitCosts[4],S.UnitCosts[5],S.UnitCosts[6],S.UnitCosts[7],S.UnitCosts[-1],S.CWind[i],GWind_sites[i]/S.years)
-        else:
+            PV_Wind_transmission_cost += annulization_transmission(S.UnitCosts[8],S.UnitCosts[34],S.UnitCosts[9],S.UnitCosts[10],S.UnitCosts[11],S.UnitCosts[-1],S.CWind[i],0,20)
+        else: # Offshore wind for Vietnam
             wind_costs += annulization(S.UnitCosts[35],S.UnitCosts[36],S.UnitCosts[37],S.UnitCosts[38],S.UnitCosts[-1],S.CWind[i],GWind_sites[i]/S.years)
+            PV_Wind_transmission_cost += annulization_transmission(4000*0.7,0,40*0.7,0,30,S.UnitCosts[-1],S.CWind[i],0,20) # Submarine cable offshore
     
-    transmission_costs = 0
+    transmission_costs = PV_Wind_transmission_cost
     for i in range(len(S.CHVDC)):
         if S.hvdc_mask[i]: # HVDC line costs
             transmission_costs += annulization_transmission(S.UnitCosts[24],0,S.UnitCosts[25],S.UnitCosts[26],S.UnitCosts[27],S.UnitCosts[-1],S.CHVDC[i],S.TDCabs.sum(axis=0)[i]/S.years,S.DCdistance[i])

@@ -183,11 +183,11 @@ def save(hydro,imports, discharge,charge):
     np.savetxt('Results/Dispatch_BatteryDischarge_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), discharge, fmt='%f', delimiter=',', newline='\n', header='Battery discharge')
     np.savetxt('Results/Dispatch_BatteryCharge_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), charge, fmt='%f', delimiter=',', newline='\n', header='Battery charge')
     
-def columnwise_clip(array_2d, clip_vector):
+""" def columnwise_clip(array_2d, clip_vector):
     num_row, num_col = array_2d.shape
     for i in range(num_col):
         array_2d[:,i] = np.clip(array_2d[:, i], 0, clip_vector[i])
-    return array_2d
+    return array_2d """
 
 def flexible_2d(hydro, imports, hydro_prop, imports_prop):
     flexible = hydro[:, np.newaxis]*hydro_prop[np.newaxis, :] + imports[:, np.newaxis]*imports_prop[np.newaxis, :]
@@ -200,14 +200,15 @@ def Flexible(capacities):
 
     # Calculate initial deficit
     Deficit1 = Reliability(S, flexible=np.zeros((intervals,nodes), dtype=np.float64), agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
-    hydrobio = columnwise_clip(Deficit1, S.CPeak*1000)
-    np.savetxt('Results/Test3.csv', hydrobio, fmt='%f', delimiter=',', newline='\n')
+    hydrobio1 = np.maximum(Deficit1,CPeak*1000)
+    #np.savetxt('Results/Test3.csv', hydrobio, fmt='%f', delimiter=',', newline='\n')
     
     
-    Deficit2 = Reliability(S, flexible=hydrobio, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
+    Deficit2 = Reliability(S, flexible=hydrobio1, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
     
     GImports = Deficit2.sum() / years / efficiency
-    GHydroBio = Deficit1.sum() / years / efficiency - GImports
+    Flexible = np.maximum(Deficit1 - Deficit2,0)
+    GHydroBio = Flexible.sum() / years / efficiency - GImports
 
     print("Initial deficit1:", Deficit1.sum())
     print("Initial deficit2:", Deficit2.sum())
@@ -255,7 +256,7 @@ def Flexible(capacities):
         print("HYDRO + IMPORTS")
         print("------------------------------")
         # initial hydro (peak) = zero
-        hydro = hydrobio.sum(axis=1)
+        hydro = hydrobio1.sum(axis=1)
         imports = np.zeros(intervals, dtype=np.float64)
         flexible = flexible_2d(hydro, imports, hydro_prop, imports_prop)
         Deficit = Reliability(S, flexible=flexible, agg_storage = True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64))
@@ -434,7 +435,8 @@ def Flexible(capacities):
         save(h_remove_spillage, i, BatteryDischarge, BatteryCharge)
 
 if __name__=='__main__':    
-    capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), delimiter=',')
+    #capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), delimiter=',')
+    capacities = np.genfromtxt('Results/Test.csv', delimiter=',')
 
     Flexible(capacities)    
     
