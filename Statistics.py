@@ -114,7 +114,7 @@ def Information(x, hydrobio, imports, charge, discharge):
 
     header = 'Demand(MW),Storage charge(MW),Spillage(MW),Solar photovoltaics(MW),Wind(MW),Storage discharge(MW),Storage level(MWh),Deficit(MW),'\
              'Hydro baseload(MW),Hydro peak(MW),Battery charge (MW),Battery discharge(MW),Battery level(MWh)'
-    np.savetxt('Results/TimeSeries_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), C, fmt='%f', delimiter=',', header=header, comments='')
+    np.savetxt('Results/TimeSeries_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), C, fmt='%f', delimiter=',', header=header, comments='')
 
     
     header = 'Operational demand,' \
@@ -130,7 +130,7 @@ def Information(x, hydrobio, imports, charge, discharge):
                       S.MStorage[:, j]])
         C = np.around(C.transpose())
 
-        np.savetxt('Results/TimeSeries_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario,str(S.Nodel_int[j])), C, fmt='%f', delimiter=',', header=header, comments='')
+        np.savetxt('Results/TimeSeries_{}_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario,str(S.Nodel_int[j])), C, fmt='%f', delimiter=',', header=header, comments='')
 
     
     print('Load profiles and generation mix is produced.')
@@ -168,7 +168,7 @@ def Information(x, hydrobio, imports, charge, discharge):
     D[0, :] = [energy * pow(10,-6), Loss.sum()/years*pow(10,-6),CPV, GPV, CFPV, CWind, GWind, CFWind, CBaseload, CPeak, GBaseload, GPeak, CBP, CBS, CBS/CBP, CPHP, CPHS, CPHS/CPHP, CDC, 
                Deficit, Spillage, LCOE, LCOEPV, LCOEWind, LCOEHydro, LCOEStorage, LCOETransmission, LCOEBattery, LCOEImports]
 
-    np.savetxt('Results/Summary_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), D, fmt='%f', delimiter=',', header = header)
+    np.savetxt('Results/Summary_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), D, fmt='%f', delimiter=',', header = header)
     print('Energy generation, storage and cost information is produced.')
 
     end = dt.datetime.now()
@@ -183,10 +183,10 @@ if __name__ == '__main__':
     # CBaseload = np.array([0, 0, 0, 0, 1.0]) # 24/7, GW
     # CPeak = CHydro + CBio - CBaseload # GW
     
-    capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), delimiter=',')
-    hydrobio = np.genfromtxt('Results/Dispatch_Hydro_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), delimiter=',', skip_header=1)
-    imports = np.genfromtxt('Results/Dispatch_Imports_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), delimiter=',', skip_header=1)
-    battery_charge = np.genfromtxt('Results/Dispatch_BatteryCharge_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), delimiter=',', skip_header=1)
-    battery_discharge = np.genfromtxt('Results/Dispatch_BatteryDischarge_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), delimiter=',', skip_header=1)
+    capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), delimiter=',')
+    hydrobio = np.genfromtxt('Results/Dispatch_Hydro_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), delimiter=',', skip_header=1)
+    imports = np.genfromtxt('Results/Dispatch_Imports_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), delimiter=',', skip_header=1)
+    battery_charge = np.genfromtxt('Results/Dispatch_BatteryCharge_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), delimiter=',', skip_header=1)
+    battery_discharge = np.genfromtxt('Results/Dispatch_BatteryDischarge_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), delimiter=',', skip_header=1)
     
     Information(capacities, hydrobio, imports, battery_charge, battery_discharge)

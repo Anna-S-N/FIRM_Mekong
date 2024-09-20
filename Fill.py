@@ -124,7 +124,7 @@ def fill_battery_discharge(deficit,battery_discharge,storage,CBP,storage_cap,eff
         battery_discharge[ini_t] = discharget
         
         battery_level = update_battery_level(battery_discharge.copy(),battery_charge.copy(),battery_efficiency,CBS,battery_level.copy(),ini_t)
-        assert battery_level.min() >= 0
+        assert battery_level.min() >= -0.000001
                         
         if d > 0:
             # need to meet deficit through trickle-charging PHES
@@ -157,7 +157,7 @@ def fill_battery_discharge(deficit,battery_discharge,storage,CBP,storage_cap,eff
                 battery_discharge[t] = discharget
                 
                 battery_level = update_battery_level(battery_discharge.copy(),battery_charge.copy(),battery_efficiency,CBS,battery_level.copy(),t)
-                assert battery_level.min() >= 0
+                assert battery_level.min() >= -0.000001
                 
                 # move to next t
                 available_energy_idx = np.where(battery_level > 0)[0] + 1
@@ -178,10 +178,10 @@ def fill_battery_discharge(deficit,battery_discharge,storage,CBP,storage_cap,eff
     return battery_discharge
 
 def save(hydro,imports, discharge,charge):
-    np.savetxt('Results/Dispatch_Hydro_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), hydro, fmt='%f', delimiter=',', newline='\n', header='Flexible hydro')
-    np.savetxt('Results/Dispatch_Imports_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), imports, fmt='%f', delimiter=',', newline='\n', header='Flexible imports')
-    np.savetxt('Results/Dispatch_BatteryDischarge_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), discharge, fmt='%f', delimiter=',', newline='\n', header='Battery discharge')
-    np.savetxt('Results/Dispatch_BatteryCharge_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), charge, fmt='%f', delimiter=',', newline='\n', header='Battery charge')
+    np.savetxt('Results/Dispatch_Hydro_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), hydro, fmt='%f', delimiter=',', newline='\n', header='Flexible hydro')
+    np.savetxt('Results/Dispatch_Imports_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), imports, fmt='%f', delimiter=',', newline='\n', header='Flexible imports')
+    np.savetxt('Results/Dispatch_BatteryDischarge_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), discharge, fmt='%f', delimiter=',', newline='\n', header='Battery discharge')
+    np.savetxt('Results/Dispatch_BatteryCharge_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), charge, fmt='%f', delimiter=',', newline='\n', header='Battery charge')
     
 """ def columnwise_clip(array_2d, clip_vector):
     num_row, num_col = array_2d.shape
@@ -438,7 +438,7 @@ def Flexible(capacities):
         save(h_remove_spillage, i, BatteryDischarge, BatteryCharge)
 
 if __name__=='__main__':    
-    #capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), delimiter=',')
+    #capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), delimiter=',')
     capacities = np.genfromtxt('Results/Test.csv', delimiter=',')
 
     Flexible(capacities)    

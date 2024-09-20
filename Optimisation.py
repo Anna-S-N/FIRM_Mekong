@@ -76,7 +76,7 @@ if __name__=='__main__':
         vectorized=True,
         )
 
-    with open('Results/Optimisation_resultx_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario), 'a', newline="") as csvfile:
+    with open('Results/Optimisation_resultx_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), 'a', newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(result.x)
 

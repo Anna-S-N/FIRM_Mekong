@@ -20,9 +20,10 @@ parser.add_argument('-e', default=3, type=int, required=False, help='per-capita 
 parser.add_argument('-n', default='TH_Iso_Grid', type=str, required=False, help='Mekong_Grid, TH_Iso_Grid, TH_Imp_Grid, Vietnam_Iso_Grid, Laos_Iso_Grid, KH, LA, VH, VS, TH ...') # TH_Iso = Isolated Thailand network, TH_imp = Thailand w imports, Mekong = Mekong Power Grid
 parser.add_argument('-s', default='nuclear', type=str, required=False, help='nuclear, no_nuclear')
 parser.add_argument('-f', default='flexible', type=str, required=False, help='flexible, modelled_baseline, modelled_newbuild')
+parser.add_argument('-b', default='batteries', type=str, required=False, help='batteries, noBatteries')
 args = parser.parse_args()
 
-percapita, node, iterations, population, nuclear_scenario, hydro_scenario = (args.e, args.n, args.i, args.p, args.s, args.f)
+percapita, node, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario = (args.e, args.n, args.i, args.p, args.s, args.f, args.b)
 
 CallBack=True
 
@@ -35,8 +36,14 @@ phes_lb_np = np.array([2.8] + [2*0.] + [2.4] + [2.4] + 5*[0.] + [1.] + [0.] + 7*
 phes_ub_np = np.array([500.] + 2*[500.] + [500.] + [500.] + 7*[500.] + 7*[0.] + [0.])
 storage_lb_np = np.array(19*[0.])
 storage_ub_np = np.array(5*[20000.] + 7*[3000.] + 7*[0.])
-battery_lb_np = np.array([0.3] + [2*0.] + [0.] + [0.] + 5*[0.] + [0.] + [0.] + 7*[0.] + [0.]) 
-battery_ub_np = np.array(12*[500.] + 6*[0.] + [0.]) 
+
+if battery_scenario == 'batteries':
+    battery_lb_np = np.array([0.3] + [2*0.] + [0.] + [0.] + 5*[0.] + [0.] + [0.] + 7*[0.] + [0.]) 
+    battery_ub_np = np.array(12*[500.] + 6*[0.] + [0.]) 
+else:
+    battery_lb_np = np.array([0.] + [2*0.] + [0.] + [0.] + 5*[0.] + [0.] + [0.] + 7*[0.] + [0.]) 
+    battery_ub_np = np.array(12*[0.] + 6*[0.] + [0.]) 
+
 Windl = np.array(['KH']*1 + ['LAN']*1 + ['LAS']*1 + ['VH']*2 + ['VS']*2 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1 + ['TH'])
 wind_lb_np = np.array([0.] + 2*[0.] + [0.]*2 + [0.]*2 + 7*[0.] + [0.]) 
 wind_ub_np = np.array([1000.] + 2*[1000.] + [1000.]*2+ [1000.]*2 + 7*[1000.] + [0.])
@@ -438,8 +445,12 @@ storage_lb = list(storage_lb_np)
 storage_ub = list(storage_ub_np)
 battery_lb = list(battery_lb_np)
 battery_ub = list(battery_ub_np)
-bduration_lb = list([1.]*nodes)
-bduration_ub = list([24.]*nodes)
+if battery_scenario == 'batteries':
+    bduration_lb = list([1.]*nodes)
+    bduration_ub = list([24.]*nodes)
+else:
+    bduration_lb = list([0.]*nodes)
+    bduration_ub = list([0.]*nodes)
 inters_lb = list(inters_lb_np)
 inters_ub = list(inters_ub_np)
 transmission_lb = list(np.array([0.] * network_mask.sum()))
