@@ -564,6 +564,7 @@ solution_spec = [
     ('CPV', float64[:]), 
     ('CWind', float64[:]), 
     ('CInter', float64[:]),
+    ('CBaseload', float64[:]),
     ('CPHP', float64[:]),
     ('CPHS', float64[:]),
     ('CBP', float64[:]),
@@ -683,6 +684,7 @@ class Solution:
         self.hydro_baseload = hydro_baseload
         self.CPeak = CPeak # GW
         self.CHydro = CHydro # GW
+        self.CBaseload = CBaseload # GW
         
         self.UnitCosts = UnitCosts
         
