@@ -484,12 +484,12 @@ def weekly_sum(original_array):
 def F(S):
     # Simulation with baseload
     #print(pidx,widx,spidx,seidx,bpidx,bhidx,iidx,len(S.x))
-    Deficit1 = Reliability(S, flexible=np.zeros((intervals, nodes), dtype=np.float64), agg_storage=True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64)) # Sj-EDE(t, j), MW
+    Deficit1 = Reliability(S, flexible=np.zeros((intervals, nodes), dtype=np.float64), agg_storage=True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64)) # Sj-EDE(t, j), MW
     hydrobio1 = np.maximum(np.minimum(Deficit1,CPeak*1000),0)
 
     # Simulation with baseload + flexible hydro and bio
     if 'Grid' in node:
-        Deficit2 = Reliability(S, flexible=hydrobio1, agg_storage=True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64)) # Sj-EDE(t, j), MW 
+        Deficit2 = Reliability(S, flexible=hydrobio1, agg_storage=True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64)) # Sj-EDE(t, j), MW 
     else:
         Deficit2 = np.zeros((intervals,nodes), dtype=np.float64)
 
@@ -515,7 +515,7 @@ def F(S):
     GBaseload = baseload.sum() * resolution / years
 
     # Deficit calculation
-    Deficit = Reliability(S, flexible=hydrobio+imports, agg_storage=True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64)) # Sj-EDE(t, j), GW to MW
+    Deficit = Reliability(S, flexible=hydrobio+imports, agg_storage=True, battery_charge=np.zeros((intervals, nodes), dtype=np.float64),battery_discharge=np.zeros((intervals, nodes), dtype=np.float64)) # Sj-EDE(t, j), GW to MW
     
     PenDeficit = np.maximum(0., Deficit.sum() * resolution - allowance) * 1000000 # MWh
 
