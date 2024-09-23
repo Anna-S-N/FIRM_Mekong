@@ -47,7 +47,7 @@ else:
 Windl = np.array(['KH']*1 + ['LAN']*1 + ['LAS']*1 + ['VH']*2 + ['VS']*2 + ['CACE']*1 + ['CACW']*1 + ['CACN']*1 + ['MAC']*1 + ['NAC']*1 + ['NEC']*1 + ['SAC']*1 + ['TH'])
 wind_lb_np = np.array([0.] + 2*[0.] + [0.]*2 + [0.]*2 + 7*[0.] + [0.]) 
 wind_ub_np = np.array([1000.] + 2*[1000.] + [1000.]*2+ [1000.]*2 + 7*[1000.] + [0.])
-CInter_mask = np.array([])
+CInter_mask = np.zeros(len(Nodel),dtype=np.int64)
 Interl = np.array([])
 inters_lb_np = np.array([])
 inters_ub_np = np.array([])
@@ -143,7 +143,7 @@ if 'Grid' not in node:
         TSPV = TSPV[:, np.where(np.in1d(PVl, coverage)==True)[0]].mean(axis=1, keepdims=True)
         TSWind = TSWind[:, np.where(np.in1d(Windl, coverage)==True)[0]].mean(axis=1, keepdims=True)
 
-        CHydro, CBaseload, CPeak = [x[np.where(np.in1d(Nodel, coverage)==True)[0]].sum(keepdims=True) for x in (CHydro, CBaseload, CPeak)]
+        CHydro, CBaseload, CPeak, CInter_mask = [x[np.where(np.in1d(Nodel, coverage)==True)[0]].sum(keepdims=True) for x in (CHydro, CBaseload, CPeak, CInter_mask)]
 
         hydromax_weeks = hydromax_weeks[:, np.where(np.in1d(Nodel, coverage)==True)[0]].mean(axis=1, keepdims=True)
         hydro_baseload = hydro_baseload[:, np.where(np.in1d(Nodel, coverage)==True)[0]].sum(axis=1, keepdims=True)
@@ -166,10 +166,11 @@ if 'Grid' not in node:
         #EWaste = EWaste[np.where(Nodel==node)[0]] # GWh
         CBaseload = CBaseload[np.where(Nodel==node)[0]] # GW
         CPeak = CPeak[np.where(Nodel==node)[0]] # GW
+        CInter_mask = CInter_mask[np.where(Nodel==node)[0]] # GW
 
-        hydromax_weeks = hydromax_weeks[np.where(Nodel==node)[0]] 
-        hydro_baseload = hydro_baseload[np.where(Nodel==node)[0]]
-        hydro_weekly_cf = hydro_weekly_cf[np.where(Nodel==node)[0]]
+        hydromax_weeks = hydromax_weeks[:, np.where(Nodel==node)[0]] 
+        hydro_baseload = hydro_baseload[:, np.where(Nodel==node)[0]]
+        hydro_weekly_cf = hydro_weekly_cf[:, np.where(Nodel==node)[0]]
 
         pv_lb_np = pv_lb_np[np.where(PVl==node)[0]]
         pv_ub_np = pv_ub_np[np.where(PVl==node)[0]]
@@ -206,7 +207,7 @@ if 'Grid' in node:
         TSPV[:, np.where(PVl=='TH')[0][0]] = TSPV[:, np.where(np.in1d(PVl, TH_coverage)==True)[0]].mean(axis=1)
         TSWind[:, np.where(Windl=='TH')[0][0]] = TSWind[:, np.where(np.in1d(Windl, TH_coverage)==True)[0]].mean(axis=1)
 
-        CHydro[np.where(Nodel=='TH')[0][0]], CBaseload[np.where(Nodel=='TH')[0][0]], CPeak[np.where(Nodel=='TH')[0][0]] = [x[np.where(np.in1d(Nodel, TH_coverage)==True)[0]].sum() for x in (CHydro, CBaseload, CPeak)]
+        CHydro[np.where(Nodel=='TH')[0][0]], CBaseload[np.where(Nodel=='TH')[0][0]], CPeak[np.where(Nodel=='TH')[0][0]], CInter_mask[np.where(Nodel=='TH')[0][0]] = [x[np.where(np.in1d(Nodel, TH_coverage)==True)[0]].sum() for x in (CHydro, CBaseload, CPeak, CInter_mask)]
 
         hydromax_weeks[:, np.where(Nodel=='TH')[0][0]] = hydromax_weeks[:, np.where(np.in1d(Nodel, TH_coverage)==True)[0]].mean(axis=1)
         hydro_baseload[:, np.where(Nodel=='TH')[0][0]] = hydro_baseload[:, np.where(np.in1d(Nodel, TH_coverage)==True)[0]].sum(axis=1)
@@ -259,7 +260,6 @@ if 'Grid' in node:
     storage_lb_np, storage_ub_np = [x[np.where(np.in1d(Nodel, coverage)==True)[0]] for x in (storage_lb_np, storage_ub_np)]
     battery_lb_np, battery_ub_np = [x[np.where(np.in1d(Nodel, coverage)==True)[0]] for x in (battery_lb_np, battery_ub_np)]
 
-    CInter_mask = np.zeros((len(Nodel)), dtype=np.int64)
     CInter_mask = CInter_mask[np.where(np.in1d(Nodel, coverage)==True)[0]]
     CInter_mask[np.where(np.in1d(coverage, Interl)==True)[0]] = 1
 
@@ -492,12 +492,19 @@ def F(S):
         Deficit2 = Reliability(S, flexible=hydrobio1, agg_storage=True, battery_charge=np.zeros(intervals, dtype=np.float64),battery_discharge=np.zeros(intervals, dtype=np.float64)) # Sj-EDE(t, j), MW 
     else:
         Deficit2 = np.zeros((intervals,nodes), dtype=np.float64)
+
+    """ print("1: ",Deficit1)
+    print("2: ",Deficit2) """
     
     # Clip all of the profiles based on capacity at each node
     Flexible = np.maximum(Deficit1-Deficit2,0)
     imports = np.minimum(Deficit2,S.CInter*1000)
     hydrobio = np.minimum(Flexible,CPeak*1000)
     hydro = np.minimum(hydrobio,CHydro*1000)
+
+    """ print("CInter: ",S.CInter)
+    print("imports: ",imports)
+    print("hydrobio: ",hydrobio) """
 
     # Constrain weekly generation from hydro
     Hydro_Weekly = weekly_sum(hydro)

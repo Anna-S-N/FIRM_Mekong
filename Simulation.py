@@ -23,7 +23,7 @@ def Reliability(solution, flexible, agg_storage, battery_charge, battery_dischar
     
     Netload = (solution.MLoad - solution.GPV - solution.GWind - solution.baseload - solution.hydro_baseload)[start:end]
     Netload -= flexible
-    
+
     shape2d = intervals, nodes = len(Netload), solution.nodes
 
     if agg_storage:
