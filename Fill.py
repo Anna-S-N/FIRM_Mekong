@@ -190,7 +190,7 @@ def save(hydro,imports, discharge,charge):
     return array_2d """
 
 def flexible_2d(hydro, imports, hydro_prop, imports_prop):
-    if imports_prop != None:
+    if imports_prop.sum() > 0:
         flexible = hydro[:, np.newaxis]*hydro_prop[np.newaxis, :] + imports[:, np.newaxis]*imports_prop[np.newaxis, :]
     else:
         flexible = hydro[:, np.newaxis]*hydro_prop[np.newaxis, :]
@@ -222,7 +222,7 @@ def Flexible(capacities):
     Charge_cap = (S.CPHP.sum() + S.CBP.sum()) * pow(10, 3)
 
     hydro_prop = S.CPeak / S.CPeak.sum()
-    imports_prop = S.CInter / S.CInter.sum() if S.CInter.sum() > 0 else None
+    imports_prop = S.CInter / S.CInter.sum() if S.CInter.sum() > 0 else np.zeros(nodes,dtype=np.int64)
     
     if (GImports == 0):
         print("HYDRO ONLY")
@@ -438,8 +438,8 @@ def Flexible(capacities):
         save(h_remove_spillage, i, BatteryDischarge, BatteryCharge)
 
 if __name__=='__main__':    
-    #capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), delimiter=',')
-    capacities = np.genfromtxt('Results/Test.csv', delimiter=',')
+    capacities = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), delimiter=',')
+    #capacities = np.genfromtxt('Results/Test.csv', delimiter=',')
 
     Flexible(capacities)    
     
