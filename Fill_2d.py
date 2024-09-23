@@ -80,16 +80,13 @@ def fill_deficit(deficit,hydro,imports,storage,hydro_limit,import_limit,storage_
     return hydro, imports
 
 @njit
-def update_battery_level(battery_discharge,battery_charge,battery_efficiency,battery_energy,old_battery_level=[],start_t=0):
+def update_battery_level(battery_discharge,battery_charge,battery_efficiency,battery_energy,old_battery_level,start_t=0):
     
     ''' generate time series data for battery level based on input battery charging and discharging profiles 
     assuming all energy loss occurs during the charging process '''
     
-    if len(old_battery_level) > 0:
-        battery_level = old_battery_level.copy()
-    else:
-        battery_level = np.zeros(intervals, dtype=np.float64)
-    
+    battery_level = old_battery_level.copy()
+
     for t in range(start_t, intervals):
         
         if t == 0:
@@ -114,8 +111,8 @@ def fill_battery_discharge(deficit,battery_discharge,storage,CBP,storage_cap,eff
     
     ''' fill deficit from battery discharging, generally the same logic as filling defict with hydro with a few small changes '''
     for n in range(nodes):   
-        idx = np.where(deficit[n] > 0)[0]
-        storage_full = np.where(storage[n] >= storage_cap[n])[0] 
+        idx = np.where(deficit[:,n] > 0)[0]
+        storage_full = np.where(storage[:,n] >= storage_cap[n])[0] 
         
         for idd, i in np.ndenumerate(idx):
             
@@ -131,30 +128,30 @@ def fill_battery_discharge(deficit,battery_discharge,storage,CBP,storage_cap,eff
                 nearest_full = 0
             
             # model battery level based on current battery charging and discharging profiles, useful to determine whether there is enough enegy left in the battery for discharging
-            battery_level = update_battery_level(battery_discharge[:,n].copy(),battery_charge[:,n].copy(),battery_efficiency,CBS)
+            battery_level = update_battery_level(battery_discharge[:,n].copy(),battery_charge[:,n].copy(),battery_efficiency,CBS[n],np.zeros(intervals, dtype=np.float64))
             
             # print(d, battery_level[ini_t-1], battery_discharge[ini_t], battery_level[ini_t])
             
             # try to meet deficit using real-time battery discharge first
-            discharget = min(battery_discharge[ini_t,n] + d, battery_level[ini_t-1,n], CBP)
+            discharget = min(battery_discharge[ini_t,n] + d, battery_level[ini_t-1], CBP[n])
             # do a battery level check every time new discharge is introduced to make sure future discharges are still valid
-            level_check = check_battery_level(ini_t, discharget, battery_discharge[:,n].copy(),battery_charge[:,n].copy(),battery_efficiency,CBS,battery_level.copy())
+            level_check = check_battery_level(ini_t, discharget, battery_discharge[:,n].copy(),battery_charge[:,n].copy(),battery_efficiency,CBS[n],battery_level.copy())
             if level_check < 0:
                 discharget = discharget  + level_check
             
             d = d - (discharget - battery_discharge[ini_t,n])
             battery_discharge[ini_t,n] = discharget
             
-            battery_level = update_battery_level(battery_discharge[:,n].copy(),battery_charge[:,n].copy(),battery_efficiency,CBS,battery_level.copy(),ini_t)
-            assert battery_level[:,n].min() >= -0.000001
+            battery_level = update_battery_level(battery_discharge[:,n].copy(),battery_charge[:,n].copy(),battery_efficiency,CBS[n],battery_level.copy(),ini_t)
+            assert battery_level.min() >= -0.000001
                             
             if d > 0:
                 # need to meet deficit through trickle-charging PHES
                 d = d / efficiency
                 
                 # available timesteps: 1) there is energy left in the battery AND 2) battery has spare power capacity 3) PHES have spare charging capacity
-                available_energy_idx = np.where(battery_level[:,n] > 0)[0] + 1
-                available_power_idx = np.where(battery_discharge[:,n] < CBP)[0]
+                available_energy_idx = np.where(battery_level > 0)[0] + 1
+                available_power_idx = np.where(battery_discharge[:,n] < CBP[n])[0]
                 spare_PHES_charging = np.where(charge[:,n] != charge_cap[n])[0]
                 available_idx = np.intersect1d(spare_PHES_charging, np.intersect1d(available_energy_idx, available_power_idx))
                 filtered_available_idx = [i for i in available_idx if i < ini_t and i > max(nearest_full, ini_t - window)]
@@ -169,22 +166,22 @@ def fill_battery_discharge(deficit,battery_discharge,storage,CBP,storage_cap,eff
                     # exhausted = False
                     
                     # discharge is constrainted by 1) available energy left in the battery and 2) battery power capacity
-                    discharget = min(battery_discharge[t,n] + d, battery_level[t-1,n], CBP)
+                    discharget = min(battery_discharge[t,n] + d, battery_level[t-1], CBP[n])
                     # print("t, battery level, previous discharge, new discharge:", t, battery_level[t-1], battery_discharge[t], discharget)
                     # do a battery level check every time new discharge is introduced to make sure future discharges are still valid
-                    level_check = check_battery_level(t, discharget, battery_discharge[:,n].copy(),battery_charge[:,n].copy(),battery_efficiency,CBS,battery_level[:,n].copy())
+                    level_check = check_battery_level(t, discharget, battery_discharge[:,n].copy(),battery_charge[:,n].copy(),battery_efficiency,CBS[n],battery_level.copy())
                     if level_check < 0:
                         discharget = discharget  + level_check
                     
                     d = d - (discharget - battery_discharge[t,n])
                     battery_discharge[t,n] = discharget
                     
-                    battery_level = update_battery_level(battery_discharge[:,n].copy(),battery_charge[:,n].copy(),battery_efficiency,CBS,battery_level.copy(),t)
+                    battery_level = update_battery_level(battery_discharge[:,n].copy(),battery_charge[:,n].copy(),battery_efficiency,CBS[n],battery_level.copy(),t)
                     assert battery_level.min() >= -0.000001
                     
                     # move to next t
                     available_energy_idx = np.where(battery_level > 0)[0] + 1
-                    available_power_idx = np.where(battery_discharge < CBP)[0]
+                    available_power_idx = np.where(battery_discharge[:,n] < CBP[n])[0]
                     available_idx = np.intersect1d(spare_PHES_charging, np.intersect1d(available_energy_idx, available_power_idx))
                     filtered_available_idx = [i for i in available_idx if i < ini_t and i > t]
                     
@@ -248,8 +245,8 @@ def Flexible(capacities):
         Storage = S.Storage
         Charge = S.Charge
         
-        print("Initial hydro generation:", h.sum()/1e6/years)
-        print("Remaining deficit:", Deficit.sum()/1e6)
+        print("Initial hydro generation:", h.sum()/years)
+        print("Remaining deficit:", Deficit.sum())
         step = 1
         
         # repeat filling for 50 times max
@@ -280,8 +277,8 @@ def Flexible(capacities):
         Storage = S.Storage
         Charge = S.Charge
         
-        print("Initial imported generation:", i.sum()/1e6/years)
-        print("Remaining deficit:", Deficit.sum()/1e6)
+        print("Initial imported generation:", i.sum()/years)
+        print("Remaining deficit:", Deficit.sum())
         step = 1
         
         # repeat filling for 50 times max
@@ -307,8 +304,8 @@ def Flexible(capacities):
             Storage = S.Storage
             Charge = S.Charge
             
-            print("Initial hydro generation:", i.sum()/1e6/years)
-            print("Remaining deficit:", Deficit.sum()/1e6)
+            print("Initial hydro generation:", i.sum()/years)
+            print("Remaining deficit:", Deficit.sum())
             step = 1
             
             # repeat filling for 50 times max
@@ -329,8 +326,8 @@ def Flexible(capacities):
     # check deficit again
     Deficit = Reliability(S, flexible=h_remove_spillage+i, agg_storage = True, battery_charge=np.zeros((intervals,nodes), dtype=np.float64),battery_discharge=np.zeros((intervals,nodes), dtype=np.float64))
         
-    print("Final hydro generation:", h_remove_spillage.sum()/1e6/years)
-    print("Remaining deficit:", Deficit.sum()/1e6)
+    print("Final hydro generation:", h_remove_spillage.sum()/years)
+    print("Remaining deficit:", Deficit.sum())
     
     # fill battery charge whenever possible
     
@@ -359,7 +356,7 @@ def Flexible(capacities):
         Storage_cap = S.CPHS * pow(10, 3)
         Charge_cap = S.CPHP * pow(10, 3)
         
-        print("Initial deficit for battery:", Deficit.sum()/1e6)
+        print("Initial deficit for battery:", Deficit.sum())
         
         BatteryDischarge = fill_battery_discharge(Deficit.copy(),BatteryDischarge.copy(),Storage.copy(),CBP,Storage_cap,S.efficiency,9999,BatteryCharge.copy(),CBS,battery_efficiency,Charge.copy(),Charge_cap)
         
@@ -367,8 +364,8 @@ def Flexible(capacities):
         Storage = S.Storage
         Charge = S.Charge
         
-        print("Initial battery discharge:", BatteryDischarge.sum()/1e6)
-        print("Remaining deficit:", Deficit.sum()/1e6)
+        print("Initial battery discharge:", BatteryDischarge.sum())
+        print("Remaining deficit:", Deficit.sum())
         step = 1
         
         while Deficit.sum() > allowance*years and step < 50:
@@ -383,35 +380,36 @@ def Flexible(capacities):
         BatteryDischarge = np.maximum(BatteryDischarge-Spillage,0)
         Deficit = Reliability(S, flexible=h_remove_spillage+i, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
         
-        print("Final battery discharge:", BatteryDischarge.sum()/1e6)
-        print("Remaining deficit:", Deficit.sum()/1e6)
+        print("Final battery discharge:", BatteryDischarge.sum())
+        print("Remaining deficit:", Deficit.sum())
         
-        battery_level = update_battery_level(BatteryDischarge.copy(),BatteryCharge.copy(),battery_efficiency,CBS)
+        for n in range(nodes):
+            battery_level = update_battery_level(BatteryDischarge[:,n].copy(),BatteryCharge[:,n].copy(),battery_efficiency,CBS[n],np.zeros(intervals, dtype=np.float64))
         
-        # revise battery charge by modelling battery storage level, if there is excess charging after battery is full, then revise battery charge accordingly
-        
-        battery_level = np.zeros((intervals, nodes), dtype=np.float64)
-        
-        for t in range(intervals):
+            # revise battery charge by modelling battery storage level, if there is excess charging after battery is full, then revise battery charge accordingly
             
-            if t == 0:
-                previous_level = 0.5 * CBS
-            else:
-                previous_level = battery_level[t-1]
-
-            netcharget = BatteryCharge[t] * battery_efficiency - BatteryDischarge[t]
-            battery_levelt = min(previous_level + netcharget, CBS)
+            battery_level = np.zeros(intervals, dtype=np.float64)
             
-            if netcharget > 0 and battery_levelt == CBS:
-                BatteryCharget = BatteryCharge[t] - max(0,battery_level[t-1] + netcharget - battery_levelt) / battery_efficiency
-                BatteryCharge[t] = BatteryCharget
+            for t in range(intervals):
                 
-            battery_level[t] = battery_levelt
+                if t == 0:
+                    previous_level = 0.5 * CBS[n]
+                else:
+                    previous_level = battery_level[t-1]
+
+                netcharget = BatteryCharge[t,n] * battery_efficiency - BatteryDischarge[t,n]
+                battery_levelt = min(previous_level + netcharget, CBS[n])
+                
+                if netcharget > 0 and battery_levelt >= CBS[n]:
+                    BatteryCharget = BatteryCharge[t,n] - max(0,battery_level[t-1] + netcharget - battery_levelt) / battery_efficiency
+                    BatteryCharge[t,n] = BatteryCharget
+                    
+                battery_level[t] = battery_levelt
                     
         Deficit = Reliability(S, flexible=h_remove_spillage+i, agg_storage = False, battery_charge = BatteryCharge.copy(), battery_discharge = BatteryDischarge.copy())
         
-        print("Battery Charge:", BatteryCharge.sum()/1e6)
-        print("Final deficit:", Deficit.sum()/1e6)
+        print("Battery Charge:", BatteryCharge.sum())
+        print("Final deficit:", Deficit.sum())
         
         # sometimes, there will be a tiny deficit when battery charge is revised (for no reason). This deficit is filled by flexible hydro (which is easier)
         if Deficit.sum() > allowance*years:

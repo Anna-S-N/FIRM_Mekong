@@ -617,6 +617,9 @@ solution_spec = [
     ('directconns', int64[:,:]),
     ('trans_tdc_mask', boolean[:,:]),
     ('hvdc_mask', boolean[:]),
+    ('battery_charge', float64[:,:]),
+    ('battery_discharge', float64[:,:]),
+    ('BStorage', float64[:,:]),
 ]
 
 
