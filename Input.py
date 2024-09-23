@@ -447,7 +447,7 @@ storage_ub = list(storage_ub_np)
 battery_lb = list(battery_lb_np)
 battery_ub = list(battery_ub_np)
 if battery_scenario == 'batteries':
-    bduration_lb = list([1.]*nodes)
+    bduration_lb = list([2.]*nodes)
     bduration_ub = list([24.]*nodes)
 else:
     bduration_lb = list([0.]*nodes)
