@@ -156,7 +156,7 @@ def Information(x, hydrobio, imports, charge, discharge):
     battery_duration = CBS/CBP if CBP > 0 else 0
     header = 'Annual generation (TWh),Loss (TWh),PV (GW),PV (TWh),Wind (GW),Wind (TWh),Nuclear (GW), Nuclear (TWh), Hydrobio peak(GW),Hydrobio (TWh),Battery Power Capacity(GW),Battery Energy Capacity(GWh),Battery average duration (hour),\
     PHES Power Capacity (GW),PHES Storage Capacity (GWh),PHES average duration (h),Transmission (GW),Deficit (TWh),Spillage(TWh),LCOE,LCOE PV,LCOE Wind,LCOE Storage,LCOE Transmission,LCOE Hydro,LCOE Battery,LCOE Imports,LCOE Nuclear'
-    D[0, :] = [energy * pow(10,-6)/S.years, Loss.sum()/years*pow(10,-6),CPV, GPV * pow(10,-6), CWind, GWind * pow(10,-6),CBaseload, GBaseload * pow(10,-6), CPeak, GPeak * pow(10,-6), CBP, CBS, battery_duration, CPHP, CPHS, CPHS/CPHP, CDC, 
+    D[0, :] = [energy * pow(10,-6), Loss.sum()/years*pow(10,-6),CPV, GPV * pow(10,-6), CWind, GWind * pow(10,-6),CBaseload, GBaseload * pow(10,-6), CPeak, GPeak * pow(10,-6), CBP, CBS, battery_duration, CPHP, CPHS, CPHS/CPHP, CDC, 
                Deficit * pow(10,-6), Spillage * pow(10,-6), LCOE, LCOEPV, LCOEWind, LCOEStorage, LCOETransmission,LCOEHydro,  LCOEBattery, LCOEImports, LCOENuclear]
 
     np.savetxt('Results/Summary_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), D, fmt='%f', delimiter=',', header = header)
