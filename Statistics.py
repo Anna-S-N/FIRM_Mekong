@@ -80,16 +80,22 @@ def Information(x, hydrobio, imports, charge, discharge):
     print("Statistics start at", start)
 
     S = Solution(x)    
-
-    S.flexible = hydrobio + imports   
     
-    S.battery_charge = charge
-    S.battery_discharge = discharge
+    if nodes > 1:
+        S.flexible = hydrobio + imports 
+        S.battery_charge = charge
+        S.battery_discharge = discharge
+    else: 
+        S.flexible = hydrobio[:, np.newaxis] + imports[:, np.newaxis]
+        S.battery_charge = charge[:, np.newaxis] 
+        S.battery_discharge = discharge[:, np.newaxis]  
+        hydrobio = hydrobio[:, np.newaxis]
+        imports = imports[:, np.newaxis]
     
-    Deficit = Reliability(S, flexible=S.flexible, agg_storage = False, battery_charge = charge, battery_discharge = discharge)
+    Deficit = Reliability(S, flexible=S.flexible, agg_storage = False, battery_charge = S.battery_charge, battery_discharge = S.battery_discharge)
     
     battery_charge_input = np.zeros((intervals,nodes), dtype=np.float64)
-    S.BStorage = update_battery_level(discharge,charge,0.9,S.CBS*1000,battery_charge_input)
+    S.BStorage = update_battery_level(S.battery_discharge,S.battery_charge,0.9,S.CBS*1000,battery_charge_input)
     S.TDCabs = np.abs(S.TDC)
 
     Debug(S)  
@@ -127,7 +133,11 @@ def Information(x, hydrobio, imports, charge, discharge):
     CFPV, CFWind = (GPV / CPV / 8.76, GWind / CWind / 8.76)
 
     costs, tech_costs = calculate_costs(S,S.Discharge,GPeak,GImports,GBaseload)
-    Loss = np.sum(S.TDCabs, axis=0) * DCloss
+    
+    if nodes>1:
+        Loss = np.sum(S.TDCabs, axis=0) * DCloss
+    else:
+        Loss = np.zeros(intervals, dtype=np.float64)
     energy = ((S.MLoad.sum() - Loss.sum()) / S.years)
         
     #PV_costs, wind_costs, transmission_costs, phes_costs, battery_costs, hydro_costs, import_costs, baseload_costs
