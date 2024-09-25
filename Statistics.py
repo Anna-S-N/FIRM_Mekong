@@ -135,7 +135,7 @@ def Information(x, hydrobio, imports, charge, discharge):
     costs, tech_costs = calculate_costs(S,S.Discharge,GPeak,GImports,GBaseload)
     
     if nodes>1:
-        Loss = np.sum(S.TDCabs, axis=0) * DCloss
+        Loss = np.sum(S.TDCabs, axis=0) * DCloss[network_mask]
     else:
         Loss = np.zeros(intervals, dtype=np.float64)
     energy = ((S.MLoad.sum() - Loss.sum()) / S.years)
