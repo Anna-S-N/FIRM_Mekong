@@ -242,6 +242,11 @@ if 'Grid' in node:
     if 'Vietnam_Iso' in node:
         coverage = np.array(['VH', 'VS'])
     
+            
+    if 'TH_LA' in node:
+        coverage = np.array(['TH', 'LAN', 'LAS'])
+    
+    
     ####### APPLY COVERAGE TO THE INPUTS ###########
         
     MLoad = MLoad[:, np.where(np.in1d(Nodel, coverage)==True)[0]]

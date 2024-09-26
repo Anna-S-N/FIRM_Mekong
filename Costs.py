@@ -2,17 +2,17 @@ import numpy as np
 from numba import njit
 
 # AUD to USD conversion 1 : 0.7 where necessary
-pv_capex = 876 # USD/kW, Mean global cost, IRENA Renewable Power Generation Costs in 2022: https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2023/Aug/IRENA_Renewable_power_generation_costs_in_2022.pdf
+pv_capex = 671 # USD/kW, Mean global cost, IRENA Renewable Power Generation Costs in 2023: https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2023/Aug/IRENA_Renewable_power_generation_costs_in_2022.pdf
 pv_fom = 3.6 # USD/kW p.a. Median Asia cost, IRENA Renewable Power Generation Costs in 2022: https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2023/Aug/IRENA_Renewable_power_generation_costs_in_2022.pdf
 pv_vom = 0 # USD/MWh p.a.
 pv_lifetime = 30
 
-wind_capex = 1274 # USD/kW, Mean global onshore wind cost, IRENA Renewable Power Generation Costs in 2022: https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2023/Aug/IRENA_Renewable_power_generation_costs_in_2022.pdf
+wind_capex = 986 # USD/kW, Mean global onshore wind cost, IRENA Renewable Power Generation Costs in 2023: https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2023/Aug/IRENA_Renewable_power_generation_costs_in_2022.pdf
 wind_fom = 29.5 # USD/kW p.a., No great data recent for ASEAN, so just used same assumption as 7th ASEAN Energy Outlook:https://asean.org/wp-content/uploads/2023/04/The-7th-ASEAN-Energy-Outlook-2022.pdf
 wind_vom = 0 # USD/MWh p.a.
 wind_lifetime = 25
 
-wind_offshore_capex = 3461 # USD/kW, Mean global offshore wind cost, IRENA Renewable Power Generation Costs in 2022: https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2023/Aug/IRENA_Renewable_power_generation_costs_in_2022.pdf
+wind_offshore_capex = 2800 # USD/kW, Mean global offshore wind cost, IRENA Renewable Power Generation Costs in 2022: https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2023/Aug/IRENA_Renewable_power_generation_costs_in_2022.pdf
 wind_offshore_fom = 67 # USD/kW p.a., No great data recent for ASEAN, so just used same assumption as 7th ASEAN Energy Outlook:https://asean.org/wp-content/uploads/2023/04/The-7th-ASEAN-Energy-Outlook-2022.pdf
 wind_offshore_vom = 0 # USD/MWh p.a.
 wind_offshore_lifetime = 25
