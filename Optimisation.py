@@ -62,7 +62,7 @@ if __name__=='__main__':
 
     try:
         initial_guess = np.genfromtxt('Results/Optimisation_resultx_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), delimiter=',', dtype=np.float64)
-    except e:
+    except Exception as e:
         initial_guess = None
     print("Initial guess: ", initial_guess)
 

@@ -1,0 +1,20 @@
+Node,Code,Fraction,Hydro,Geothermal,Biomass,Waste,Nuclear
+Cambodia,KH,1,2786,0,52,0,0
+Laos-North,LAN,1,889,0,53,0,0
+Laos-South,LAS,1,2800,0,54,0,0
+Vietnam-Hanoi,VH,1,12500,0,204,0,0
+Vietnam-HCMC,VS,1,9998,0,204,0,0
+Thailand-Central-East,CACE,1,226,0,0,0,0
+Thailand-Central-West,CACW,1,394,0,0,0,0
+Thailand-Central-North,CACN,1,293,0,0,0,0
+Thailand-Metropolitan,MAC,1,0.8,0,0,0,0
+Thailand-North,NAC,1,1483,0,0,0,0
+Thailand-Northeast,NEC,1,290,0,0,0,0
+Thailand-South,SAC,1,338,0,0,0,0
+Malaysia (Imports),MY_I,1,0,0,0,0,0
+Myanmar (Imports),MM_I,1,0,0,0,0,0
+Cambodia (Imports),KH_I,1,0,0,0,0,0
+Laos-South (Imports),LAS_I,1,0,0,0,0,0
+Laos-North (Imports),LAN_I,1,0,0,0,0,0
+China (Imports),CH_I,1,0,0,0,0,0
+Thailand (aggregate),TH,1,0,0,0,0,0

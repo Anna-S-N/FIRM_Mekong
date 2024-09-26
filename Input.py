@@ -19,7 +19,7 @@ parser.add_argument('-r', default=0.3, type=float, required=False, help='recombi
 parser.add_argument('-e', default=3, type=int, required=False, help='per-capita electricity: 3, 10, 20, and 99 (PDP projections) MWh')
 parser.add_argument('-n', default='TH_Iso_Grid', type=str, required=False, help='Mekong_Grid, TH_Iso_Grid, TH_Imp_Grid, Vietnam_Iso_Grid, Laos_Iso_Grid, KH, LA, VH, VS, TH ...') # TH_Iso = Isolated Thailand network, TH_imp = Thailand w imports, Mekong = Mekong Power Grid
 parser.add_argument('-s', default='nuclear', type=str, required=False, help='nuclear, no_nuclear')
-parser.add_argument('-f', default='flexible', type=str, required=False, help='flexible, modelled_baseline, modelled_newbuild')
+parser.add_argument('-f', default='flexible', type=str, required=False, help='flexible, new_modelled_baseline, modelled_newbuild')
 parser.add_argument('-b', default='batteries', type=str, required=False, help='batteries, noBatteries')
 args = parser.parse_args()
 
@@ -67,6 +67,11 @@ if nuclear_scenario == 'nuclear':
 else:
     assets = np.genfromtxt('Data/assets.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
 
+if hydro_scenario == 'flexible':
+    assets = np.genfromtxt('Data/assets.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
+else:
+    assets = np.genfromtxt('Data/assets_hydro_outCatchment.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
+
 CHydro, CGeo, CBio, CWaste, CNuclear = [assets[:, x] * pow(10, -3) for x in range(assets.shape[1])]
 #constraints = np.genfromtxt('Data/constraints.csv', dtype=None, delimiter=',', encoding=None)[1:, 3:].astype(float)
 #print(constraints)
@@ -76,14 +81,13 @@ CBaseload = CNuclear + CGeo
 if hydro_scenario == 'flexible':
     hydro_baseload = np.zeros(MLoad.shape, dtype=np.float64)
     CPeak = CHydro + CBio + CWaste
-elif hydro_scenario == 'modelled_baseline':
-    hydro_baseload = np.genfromtxt('Data/hydro_baseline.csv', delimiter=',', skip_header=1)
-    CPeak = CBio + CWaste
-    CHydro*=0
+elif hydro_scenario == 'new_modelled_baseline':
+    hydro_baseload = np.genfromtxt('Data/new_hydro_baseline.csv', delimiter=',', skip_header=1)
+    CPeak = CBio + CWaste + CHydro
 elif hydro_scenario == 'modelled_newbuild':
     hydro_baseload = np.genfromtxt('Data/hydro_newbuild.csv', delimiter=',', skip_header=1)
-    CPeak = CBio + CWaste
-    CHydro*=0
+    CPeak = CBio + CWaste + CHydro
+
 
 ###### CONSTRAINTS ######
 # Energy constraints
