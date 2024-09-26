@@ -32,6 +32,12 @@ def Callback_1(xk, convergence=None):
         writer = csv.writer(csvfile)
         #writer.writerow([obj_value] + list(xk))
         writer.writerow(list(xk))
+        
+#        try:
+#            if xk[-1] ==xk[-100]:
+#               return True
+#        except IndexError:
+#            return
   
 def Init_callback():
     with open('Results/History_{}_{}_{}_{}_{}_{}_{}.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), 'w', newline='') as csvfile:
