@@ -45,7 +45,7 @@ def Debug(solution):
     for i in range(solution.intervals):
         # Energy supply-demand balance
         if abs(MLoad[i] + Charge[i] + BCharge [i] + Spillage[i] - PV[i] - Wind[i] - Flexible[i] - Baseload[i] - Discharge[i] - BDischarge[i] - Deficit[i]) > 10:
-            print(i,MLoad[i],Charge[i],BCharge [i],Spillage[i],PV[i],Wind[i],Hydro[i],Discharge[i],BDischarge[i],Deficit[i])
+            print(i,MLoad[i],Charge[i],BCharge [i],Spillage[i],PV[i],Wind[i],Flexible[i],Discharge[i],BDischarge[i],Deficit[i])
         assert abs(MLoad[i] + Charge[i] + BCharge [i] + Spillage[i] - PV[i] - Wind[i] - Flexible[i] - Baseload[i] - Discharge[i] - BDischarge[i] - Deficit[i]) <= 10
 
         # Discharge, Charge and Storage
