@@ -79,7 +79,7 @@ if __name__=='__main__':
         tol=0,
         maxiter=args.i, 
         popsize=args.p, 
-        mutation=args.m, 
+        mutation=(0.2,args.m), 
         recombination=args.r,
         disp=True, 
         polish=False, 

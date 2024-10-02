@@ -84,6 +84,9 @@ elif hydro_scenario == 'new_modelled_baseline':
 elif hydro_scenario == 'modelled_newbuild':
     hydro_baseload = np.genfromtxt('Data/hydro_newbuild.csv', delimiter=',', skip_header=1)
     CPeak = CBio + CWaste + CHydro
+elif hydro_scenario == 'newbuild_noSSS':
+    hydro_baseload = np.genfromtxt('Data/hydro_newbuild_noSSS.csv', delimiter=',', skip_header=1)
+    CPeak = CBio + CWaste + CHydro
 
 
 ###### CONSTRAINTS ######
