@@ -61,7 +61,7 @@ battery_vom = 0 # AUD/MWh p.a.
 battery_lifetime = 20
 
 nuclear_purchase = 190 # USD/MWh, based on illustrative midpoint from Lazard LCOE+ for US Nuclear: https://www.lazard.com/media/xemfey0k/lazards-lcoeplus-june-2024-_vf.pdf
-hydro_purchase = 50 # USD/MWh
+hydro_purchase = 60 # USD/MWh
 import_purchase = 50 # USD/MWh, assume imports are hydro
 
 DR = 0.05 # real discount rate: WACC between 5-6% in ASEAN countries currently https://www.irena.org/-/media/Files/IRENA/Agency/Publication/2022/Sep/IRENA_Renewable_energy_outlook_ASEAN_2022.pdf
