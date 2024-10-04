@@ -19,7 +19,7 @@ parser.add_argument('-r', default=0.3, type=float, required=False, help='recombi
 parser.add_argument('-e', default=3, type=int, required=False, help='per-capita electricity: 3, 10, 20, and 99 (PDP projections) MWh')
 parser.add_argument('-n', default='TH_Iso_Grid', type=str, required=False, help='Mekong_Grid, TH_Iso_Grid, TH_Imp_Grid, Vietnam_Iso_Grid, Laos_Iso_Grid, KH, LA, VH, VS, TH ...') # TH_Iso = Isolated Thailand network, TH_imp = Thailand w imports, Mekong = Mekong Power Grid
 parser.add_argument('-s', default='nuclear', type=str, required=False, help='nuclear, no_nuclear')
-parser.add_argument('-f', default='flexible', type=str, required=False, help='flexible, new_modelled_baseline, modelled_newbuild')
+parser.add_argument('-f', default='flexible', type=str, required=False, help='flexible, new_modelled_baseline, modelled_newbuild, newbuild_noSSS')
 parser.add_argument('-b', default='batteries', type=str, required=False, help='batteries, noBatteries')
 args = parser.parse_args()
 

@@ -1,9 +1,9 @@
 Node,Code,Fraction,Hydro,Geothermal,Biomass,Waste,Nuclear
-Cambodia,KH,1,2786,0,52,0,0
-Laos-North,LAN,1,889,0,53,0,0
-Laos-South,LAS,1,2800,0,54,0,0
-Vietnam-Hanoi,VH,1,12500,0,204,0,0
-Vietnam-HCMC,VS,1,9998,0,204,0,0
+Cambodia,KH,1,4786,0,52,0,0
+Laos-North,LAN,1,2389,0,53,0,0
+Laos-South,LAS,1,3550,0,54,0,0
+Vietnam-Hanoi,VH,1,16000,0,204,0,0
+Vietnam-HCMC,VS,1,13498,0,204,0,0
 Thailand-Central-East,CACE,1,226,0,0,0,0
 Thailand-Central-West,CACW,1,394,0,0,0,0
 Thailand-Central-North,CACN,1,293,0,0,0,0
