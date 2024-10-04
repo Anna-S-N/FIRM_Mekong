@@ -101,12 +101,12 @@ def Information(x, hydrobio, imports, charge, discharge):
     Debug(S)  
 
     C = np.stack([S.MLoad.sum(axis=1), S.Charge.sum(axis=1), S.Spillage.sum(axis=1), S.GPV.sum(axis=1), S.GWind.sum(axis=1), S.Discharge.sum(axis=1), S.Storage.sum(axis=1), 
-                  S.Deficit.sum(axis=1), S.baseload.sum(axis=1), S.flexible.sum(axis=1), S.battery_charge.sum(axis=1), S.battery_discharge.sum(axis=1), S.BStorage.sum(axis=1)]) 
+                  S.Deficit.sum(axis=1), S.baseload.sum(axis=1), S.hydro_baseload.sum(axis=1), hydrobio.sum(axis=1), imports.sum(axis=1),S.battery_charge.sum(axis=1), S.battery_discharge.sum(axis=1), S.BStorage.sum(axis=1)]) 
     C = np.hstack([C.transpose(), S.TDC])    
     C = np.around(C)
 
     header = 'Demand(MW),Storage charge(MW),Spillage(MW),Solar photovoltaics(MW),Wind(MW),Storage discharge(MW),Storage level(MWh),Deficit(MW),'\
-             'Hydro baseload(MW),Hydro peak(MW),Battery charge (MW),Battery discharge(MW),Battery level(MWh),Transmission flows (MWh)'
+             'Nuclear(MW),Hydro baseload(MW),Hydrobio peak(MW),Imports(MW),Battery charge (MW),Battery discharge(MW),Battery level(MWh),Transmission flows (MWh)'
     np.savetxt('Results/TimeSeries_{}_{}_{}_{}_{}_{}_{}_NETWORK.csv'.format(node, percapita, iterations, population, nuclear_scenario, hydro_scenario, battery_scenario), C, fmt='%f', delimiter=',', header=header, comments='')
 
     
