@@ -23,7 +23,7 @@ nhvdc = len(network)
 ndays = 365*years 
 intervals = int(ndays*24/resolution)
 
-adj_energy = (MLoad[:intervals, :].sum() * pow(10, -9) * resolution/years)
+adj_energy = (MLoad[:intervals, :].sum() * pow(10, -6) * resolution/years)
 
 #%%
 from Costs import UnitCosts, annulization, annulization_transmission
@@ -53,10 +53,10 @@ def calculate_costs_linear(m):
     for i in range(nhvdc):
         if hvdc_mask[i]: # HVDC line costs
             transmission_costs += annulization_transmission(UnitCosts[24],0,UnitCosts[25],UnitCosts[26],UnitCosts[27],UnitCosts[-1],m.chvdc[i+1].value,
-                                                            (sum((m.hvdc_neg[t, i]) for t in m.time) + sum((m.hvdc_pos[t, i]) for t in m.time))/years,DCdistance[i])
+                                                            (sum((m.hvdc_neg[t, i+1].value for t in m.time)) + sum((m.hvdc_pos[t, i+1].value for t in m.time)))/years,DCdistance[i])
         else: # HVAC line + transformer costs
             transmission_costs += annulization_transmission(UnitCosts[8],UnitCosts[34],UnitCosts[9],UnitCosts[10],UnitCosts[11],UnitCosts[-1],m.chvdc[i+1].value,
-                                                            (sum((m.hvdc_neg[t, i]) for t in m.time) + sum((m.hvdc_pos[t, i]) for t in m.time))/years,DCdistance[i])
+                                                            (sum((m.hvdc_neg[t, i+1].value for t in m.time)) + sum((m.hvdc_pos[t, i+1].value for t in m.time)))/years,DCdistance[i])
     # Converter and substation costs, a pair of stations per line
     for i in range(nhvdc):
         if hvdc_mask[i]:
@@ -68,12 +68,13 @@ def calculate_costs_linear(m):
             
     pv_phes = (1-(1+UnitCosts[-1])**(-1*UnitCosts[18]))/UnitCosts[-1]
     phes_costs = (UnitCosts[12] * sum_model_c(m.cphp) * pow(10,6) + UnitCosts[13] * sum_model_c(m.cphe) * pow(10,6)) / pv_phes \
-                    + UnitCosts[14] * sum_model_c(m.cphp) * pow(10,6) + UnitCosts[15] * (sum_model_c(m.phdischarge) + sum_model_c(m.bdischarge)) / years \
+                    + UnitCosts[14] * sum_model_c(m.cphp) * pow(10,6) + UnitCosts[15] * (sum_model_c(m.dischargeph) + sum_model_c(m.dischargeb)) / years \
                     + UnitCosts[16] * ((1+UnitCosts[-1])**(-1*UnitCosts[17]) + (1+UnitCosts[-1])**(-1*UnitCosts[17]*2)) / pv_phes
     
     pv_battery = (1-(1+UnitCosts[-1])**(-1*UnitCosts[22]))/UnitCosts[-1] # 19, 20, 21, 22
-    battery_costs = (UnitCosts[19] * sum_model_c(m.cbp) * pow(10,6) + UnitCosts[20] * sum_model_c(m.cbh) * pow(10,6)) / pv_battery \
-                    + UnitCosts[21] * sum_model_c(m.cbh) * pow(10,6)
+    battery_costs=0
+    # battery_costs = (UnitCosts[19] * sum_model_c(m.cbp) * pow(10,6) + UnitCosts[20] * sum_model_c(m.cbe) * pow(10,6)) / pv_battery \
+    #                 + UnitCosts[21] * sum_model_c(m.cbe) * pow(10,6)
     
     hydro_costs = UnitCosts[23] * sum_model_c(m.hydro)
     # import_costs = UnitCosts[32] * GImports
@@ -84,7 +85,7 @@ def calculate_costs_linear(m):
                            # import_costs,
                            baseload_costs], dtype=np.float64)
     
-    return costs, tech_costs
+    return costs#, tech_costs
      
 
 
@@ -134,11 +135,11 @@ model.cbp = pyo.Var(
     bounds=dict(zip(range(1, nodes+1), zip(battery_lb, battery_ub))),
     initialize=dict(zip(range(1, nodes+1), ((u-l)/2 for l, u in zip(battery_lb, battery_ub)))),
     )
-model.cbh = pyo.Var(
+model.cbe = pyo.Var(
     model.nodes, 
     domain=pyo.NonNegativeReals, 
-    bounds=dict(zip(range(1, nodes+1), zip(bduration_lb, bduration_ub))),
-    initialize=dict(zip(range(1, nodes+1), ((u-l)/2 for l, u in zip(bduration_lb, bduration_ub)))),
+    bounds=dict(zip(range(1, nodes+1), zip(benergy_lb, benergy_ub))),
+    initialize=dict(zip(range(1, nodes+1), ((u-l)/2 for l, u in zip(benergy_lb, benergy_ub)))),
     )
 model.chvdc = pyo.Var(
     model.lines, 
@@ -176,7 +177,7 @@ model.constr_storage_energy_upper_ph  = pyo.Constraint(model.time, model.nodes, 
 
 model.constr_charge_power_upper_b     = pyo.Constraint(model.time, model.nodes, rule=lambda m, t, n: m.chargeb[t, n]    <= m.cbp[n])
 model.constr_discharge_power_upper_b  = pyo.Constraint(model.time, model.nodes, rule=lambda m, t, n: m.dischargeb[t, n] <= m.cbp[n])
-model.constr_storage_energy_upper_b   = pyo.Constraint(model.time, model.nodes, rule=lambda m, t, n: m.storageb[t, n]   <= m.cbh[n])
+model.constr_storage_energy_upper_b   = pyo.Constraint(model.time, model.nodes, rule=lambda m, t, n: m.storageb[t, n]   <= m.cbe[n])
 
 # State of charge 
 def constr_state_of_chargeph(m, t, n):
@@ -187,10 +188,10 @@ model.constr_storage_state_of_chargeph = pyo.Constraint(model.time, model.nodes,
 # State of charge 
 def constr_state_of_chargeb(m, t, n):
     if t==1: 
-        return m.storageb[t, n] == 0.5 * m.cbh[n]
+        return m.storageb[t, n] == 0.5 * m.cbe[n]
     ## Check this logic - units?
     else: 
-        return m.storageb[t, n] == m.storageb[t-1, n] + (- m.dischargeb[t-1, n] * resolution + m.chargeb[t-1, n] * resolution * efficiency)/ m.cbp[n]
+        return m.storageb[t, n] == m.storageb[t-1, n] - m.dischargeb[t-1, n] * resolution + m.chargeb[t-1, n] * resolution * efficiency
 model.constr_storage_state_of_chargeb = pyo.Constraint(model.time, model.nodes, rule=constr_state_of_chargeb)
 
 # Deficit allowance 

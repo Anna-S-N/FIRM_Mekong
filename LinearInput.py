@@ -274,11 +274,10 @@ if 'Grid' in node:
 ###### Simulation Period ######
 firstyear = 2010
 finalyear = firstyear+years-1 
-   
+intervals = int(years*365*24/resolution)
 ###### DECISION VARIABLE LIST INDEXES ######
 Windl_Viet_int = np.array([n_node[node] for node in ['VH', 'VS']], dtype=np.int64)[::2]
-intervals, nodes = MLoad.shape # The no. of intervals equals the no. of rows in the MLoad variable. The no. of nodes equals the no. of columns in MLoad 
-years = int(resolution * intervals / 8760)
+nodes = MLoad.shape[1] # The no. of intervals equals the no. of rows in the MLoad variable. The no. of nodes equals the no. of columns in MLoad 
 pzones, wzones = (TSPV.shape[1], TSWind.shape[1]) # Number of solar and wind sites
 pidx, widx = (pzones, pzones + wzones) # Integers that define the final index of solar, wind, phes, etc. sites within the decision variable list
 spidx, seidx = pzones + wzones + nodes, pzones + wzones + nodes + nodes
@@ -286,12 +285,13 @@ bpidx, bhidx = seidx + nodes, seidx + nodes + nodes
 inters = len(Interl) # The number of external interconnections
 iidx = bhidx + inters
 
+MLoad, hydro_baseload = (x[:intervals, :] for x in (MLoad, hydro_baseload))
+
 energy = MLoad.sum() * resolution / years # MWh p.a.
 
 baseload = np.tile(CBaseload, (intervals, 1)) * 1000 # GW to MW, excluding hydro
 
-Netload = ((MLoad - hydro_baseload)[:intervals, :] - baseload)
-
+Netload = (MLoad - hydro_baseload - baseload)
 
 ###### Network Constraints
 allowance = min(0.00002*np.reshape(MLoad.sum(axis=1), (-1,8760)).sum(axis=-1)) # Allowable annual deficit of 0.002%, MWh
@@ -312,21 +312,21 @@ storage_ub = list(storage_ub_np)
 battery_lb = list(battery_lb_np)
 battery_ub = list(battery_ub_np)
 if battery_scenario == 'batteries':
-    bduration_lb = list([2.]*(nodes-inters)+[0.]*inters)
-    bduration_ub = list([24.]*(nodes-inters)+[0.]*inters)
+    benergy_lb = list(np.array([2.]*(nodes-inters)+[0.]*inters)*battery_lb) 
+    benergy_ub = list(np.array([24.]*(nodes-inters)+[0.]*inters)*battery_ub)
 else:
-    bduration_lb = list([0.]*nodes)
-    bduration_ub = list([0.]*nodes)
+    benergy_lb = list([0.]*nodes)
+    benergy_ub = list([0.]*nodes)
 inters_lb = list(inters_lb_np)
 inters_ub = list(inters_ub_np)
 transmission_lb = list(np.array([0.] * network_mask.sum()))
 transmission_ub = list(CDCmax)
 
-print(pv_lb, wind_lb, phes_lb, storage_lb, battery_lb, bduration_lb, inters_lb, transmission_lb)
-print(pv_ub, wind_ub, phes_ub, storage_ub, battery_ub, bduration_ub, inters_ub, transmission_ub)
+print(pv_lb, wind_lb, phes_lb, storage_lb, battery_lb, benergy_lb, inters_lb, transmission_lb)
+print(pv_ub, wind_ub, phes_ub, storage_ub, battery_ub, benergy_ub, inters_ub, transmission_ub)
 
-lb = np.array(pv_lb + wind_lb + phes_lb + storage_lb + battery_lb + bduration_lb + inters_lb + transmission_lb)
-ub = np.array(pv_ub + wind_ub + phes_ub + storage_ub + battery_ub + bduration_ub + inters_ub + transmission_ub)
+lb = np.array(pv_lb + wind_lb + phes_lb + storage_lb + battery_lb + benergy_lb + inters_lb + transmission_lb)
+ub = np.array(pv_ub + wind_ub + phes_ub + storage_ub + battery_ub + benergy_ub + inters_ub + transmission_ub)
 
 
 #%%
