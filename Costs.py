@@ -72,7 +72,7 @@ UnitCosts = np.array([pv_capex,pv_fom,pv_vom,pv_lifetime,wind_capex,wind_fom,win
                        hydro_purchase,transmission_hvdc_capex,transmission_hvdc_fom,transmission_hvdc_vom,transmission_hvdc_lifetime,converter_capex,converter_fom,converter_vom,converter_lifetime,
                        import_purchase,nuclear_purchase,transmission_hvac_transformers,wind_offshore_capex,wind_offshore_fom,wind_offshore_vom,wind_offshore_lifetime,DR], dtype=np.float64)
 
-# @njit()
+@njit()
 def annulization(capex, fom, vom, life, dr, p, e):
 
     """ Calculate annulized costs for capacity p and annual generation e.
@@ -88,7 +88,7 @@ def annulization(capex, fom, vom, life, dr, p, e):
 
     return p * pow(10,6) * capex / pv + p * pow(10,6) * fom + e * vom
 
-# @njit()
+@njit()
 def annulization_transmission(capex, transformer_capex, fom, vom, life, dr, p, e, d):
 
     """ Calculate annulized costs for capacity p and annual generation e, for transmission lines only.
@@ -153,3 +153,6 @@ def calculate_costs(S, GDischarge, GHydro, GImports, GBaseload):
 
     return costs, tech_costs
     #return costs
+
+
+

@@ -18,36 +18,49 @@ def Debug(solution):
         # supply-demand
         assert (np.abs(
             solution.Load[t] 
+            + solution.Chargeph[t]
+            + solution.Chargeb[t]
+            + solution.Transmission[t] 
             + solution.Spillage[t] 
-            + solution.Charge[t]
-            - solution.Discharge[t] 
+            # - solution.Deficit[t]
+            - solution.hydro_baseload[t]
+            - solution.baseload[t]
+            - solution.Dischargeph[t] 
+            - solution.Dischargeb[t] 
             - solution.Hydro[t] 
-            # - solution.Geo[t]
-            # - solution.Bio[t]
-            # - solution.Waste[t]
-            - solution.Coal[t]
-            - solution.Oil[t]
-            - solution.Gas[t]
+            - solution.Bio[t]
+            - solution.Waste[t]
             - solution.PV[t]
             - solution.Wind[t]
-            + solution.Transmission[t] 
             ) <= 1 #MW
                 ).all(), f"Supply demand unbalanced. t: {t}"
 
+            
         # Discharge, Charge and Storage
         if t == 0:
-            assert (np.abs(solution.Storage[t] - 0.5 * solution.cphe * 1000) <= 1).all(), f"Storage Start incorrect. t: {t}"
+            assert (np.abs(solution.Storageph[t] - solution.StartCharge * solution.cphe * 1000) <= 1).all(), f"Storage Start incorrect. t: {t}"
         else:
-            assert (np.abs(solution.Storage[t-1] - solution.Storage[t] 
-                           + solution.Charge[t-1] * solution.resolution * solution.efficiency
-                           - solution.Discharge[t-1] * solution.resolution) <= 1).all(), f"Storage dis/charge accounting incorrect. t: {t}"
+            assert (np.abs(solution.Storageph[t-1] - solution.Storageph[t] 
+                           + solution.Chargeph[t-1] * solution.resolution * solution.efficiency
+                           - solution.Dischargeph[t-1] * solution.resolution) <= 1).all(), f"PH Storage dis/charge accounting incorrect. t: {t}"
+        if t == 0:
+            assert (np.abs(solution.Storageb[t] - solution.StartCharge * solution.cbe * 1000) <= 1).all(), f"Storage Start incorrect. t: {t}"
+        else:
+            assert (np.abs(solution.Storageb[t-1] - solution.Storageb[t] 
+                           + solution.Chargeb[t-1] * solution.resolution * solution.efficiency
+                           - solution.Dischargeb[t-1] * solution.resolution) <= 1).all(), f"Battery Storage dis/charge accounting incorrect. t: {t}"
 
-    assert (np.amax(solution.Charge, axis=0)    - 1000*solution.cphp  <= 1).all(), "Storage charging exceeds bounds."
-    assert (np.amax(solution.Discharge, axis=0) - 1000*solution.cphp  <= 1).all(), "Storage discharging exceeds bounds."
-    assert (np.amax(solution.Storage, axis=0)   - 1000*solution.cphe  <= 1).all(), "Storage level exceeds bounds."
-    assert (np.amin(solution.Storage, axis=0)                         >= 0).all(), "Storage level goes negative"
-    assert (np.amax(solution.Hvdc, axis=0)      - 1000*solution.chvdc <= 1).all(), "Transmission exceeds line capacity."
-    assert (np.amin(solution.Hvdc, axis=0)      + 1000*solution.chvdc >= -1).all(), "Transmission exceeds line capacity."
+
+    assert (np.amax(solution.Chargeph, axis=0)    - 1000*solution.cphp <= 1).all(), "Storage charging exceeds bounds."
+    assert (np.amax(solution.Dischargeph, axis=0) - 1000*solution.cphp <= 1).all(), "Storage discharging exceeds bounds."
+    assert (np.amax(solution.Storageph, axis=0)   - 1000*solution.cphe <= 1).all(), "Storage level exceeds bounds."
+    assert (np.amin(solution.Storageph, axis=0)                        >= 0).all(), "Storage level goes negative"
+    assert (np.amax(solution.Chargeb, axis=0)     - 1000*solution.cbp  <= 1).all(), "Storage charging exceeds bounds."
+    assert (np.amax(solution.Dischargeb, axis=0)  - 1000*solution.cbp  <= 1).all(), "Storage discharging exceeds bounds."
+    assert (np.amax(solution.Storageb, axis=0)    - 1000*solution.cbe  <= 1).all(), "Storage level exceeds bounds."
+    assert (np.amin(solution.Storageb, axis=0)                         >= 0).all(), "Storage level goes negative"
+    assert (np.amax(solution.Trans, axis=0)      - 1000*solution.ctrans<= 1).all(), "Transmission exceeds line capacity."
+    assert (np.amin(solution.Trans, axis=0)      + 1000*solution.ctrans >= -1).all(), "Transmission exceeds line capacity."
 
     assert (solution.Transmission.sum(axis=1) >= 0).all(), "DClosses are negative"
 
@@ -199,10 +212,10 @@ def Information(solution):
     start=dt.now()
     print("Statistics start at", start)
 
-    LPGM(solution)
-    GGTA(solution)
+    # LPGM(solution)
+    # GGTA(solution)
     Debug(solution)
-
+    raise NotImplementedError()
 
     end=dt.now()
     print("Statistics took", end - start)
