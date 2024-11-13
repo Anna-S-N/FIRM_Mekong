@@ -42,7 +42,7 @@ else:
 Windl = np.array(['KH', 'LAN', 'LAS'] + ['VH']*2 + ['VS']*2 + ['CACE', 'CACW', 'CACN', 'MAC', 'NAC', 'NEC', 'SAC', 'TH'])
 wind_lb_np = np.array(15*[0.]) 
 wind_ub_np = np.array(14*[1000.] + [0.])
-CInter_mask = np.zeros(len(Nodel),dtype=np.int64)
+CInter_mask = np.zeros(len(Nodel),dtype=np.bool_)
 Interl = np.array([])
 inters_lb_np = np.array([])
 inters_ub_np = np.array([])
@@ -223,7 +223,7 @@ if 'Grid' in node:
     battery_lb_np, battery_ub_np = [x[np.where(np.in1d(Nodel, coverage)==True)[0]] for x in (battery_lb_np, battery_ub_np)]
 
     CInter_mask = CInter_mask[np.where(np.in1d(Nodel, coverage)==True)[0]]
-    CInter_mask[np.where(np.in1d(coverage, Interl)==True)[0]] = 1
+    CInter_mask[np.where(np.in1d(coverage, Interl)==True)[0]] = True
 
     Nodel, PVl, Windl = [x[np.where(np.in1d(x, coverage)==True)[0]] for x in (Nodel, PVl, Windl)]
     Nodel_int, PVl_int, Windl_int = [x[np.where(np.in1d(x, coverage_int)==True)[0]] for x in (Nodel_int, PVl_int, Windl_int)]
@@ -292,44 +292,55 @@ CHydro, CBio, CWaste = [x/1000 for x in (CHydro, CBio, CWaste)]
 allowance = min(0.00002*np.reshape(MLoad.sum(axis=1), (-1,8760)).sum(axis=-1)) # Allowable annual deficit of 0.002%, MWh
 efficiency = 0.8 #80% round-trip efficiency PHES
 
-StartCharge = 0.8 #starting storage level 
+StartCharge = 0.5 #starting storage level 
 
 ###### DECISION VARIABLE UPPER AND LOWER BOUNDS ######
 DCloss = DCloss[network_mask]
 DCdistance = DCdistance[network_mask]
 hvdc_mask = hvdc_mask[network_mask]
+HVDCloss, HVACloss = DCloss[hvdc_mask], DCloss[~hvdc_mask]
 
-CDCmax = 10000.*np.ones_like(DCloss, dtype=np.float64)
+offshore_mask = np.isin(Windl_int, Windl_Viet_int)
+
+TSWind_on, TSWind_off = TSWind[:, ~offshore_mask], TSWind[:, offshore_mask]
+
+CDCmax = 50.*np.ones_like(DCloss, dtype=np.float64)
 
 pv_lb = list(pv_lb_np)
-pv_ub = list(pv_ub_np)
-wind_lb = list(wind_lb_np)
-wind_ub = list(wind_ub_np)
+pv_ub = list(pv_ub_np/100)
+wind_on_lb = list(wind_lb_np[~offshore_mask])
+wind_on_ub = list(wind_ub_np[~offshore_mask]/100)
+wind_off_lb = list(wind_lb_np[offshore_mask])
+wind_off_ub = list(wind_ub_np[offshore_mask]/100)
 phes_lb = list(phes_lb_np)
-phes_ub = list(phes_ub_np)
+phes_ub = list(phes_ub_np/20)
 storage_lb = list(storage_lb_np)
-storage_ub = list(storage_ub_np)
+storage_ub = list(storage_ub_np/100)
 battery_lb = list(battery_lb_np)
-battery_ub = list(battery_ub_np)
+battery_ub = list(battery_ub_np/50)
 if battery_scenario == 'batteries':
     bduration_lb_np = np.array([2.]*(nodes-inters)+[0.]*inters)
     bduration_ub_np = np.array([24.]*(nodes-inters)+[0.]*inters)
     bduration_lb = list(bduration_lb_np*battery_lb_np)
-    bduration_ub = list(bduration_ub_np*battery_ub_np)
+    bduration_ub = list(bduration_ub_np*battery_ub_np/100)
 else:
     bduration_lb = list([0.]*nodes)
     bduration_ub = list([0.]*nodes)
 inters_lb = list(inters_lb_np)
 inters_ub = list(inters_ub_np)
-transmission_lb = list(np.array([0.] * network_mask.sum()))
-transmission_ub = list(CDCmax)
+hvdc_lb = list(np.array([0.] * hvdc_mask.sum()))
+hvdc_ub = list(CDCmax[hvdc_mask])
+hvac_lb = list(np.array([0.] * (~hvdc_mask).sum()))
+hvac_ub = list(CDCmax[~hvdc_mask])
 
 print(f"""
 Bounds: 
 \u2022pv:  {pv_lb}
  [GW] {pv_ub}
-\u2022wind: {wind_lb}
- [GW]  {wind_ub}
+\u2022onshore wind: {wind_on_lb}
+ [GW]          {wind_on_ub}
+\u2022offshore wind: {wind_off_lb}
+ [GW]           {wind_off_ub}
 \u2022ph-power: {phes_lb}
  [GW]      {phes_ub}
 \u2022ph-energy: {storage_lb}
@@ -340,14 +351,18 @@ Bounds:
  [GWh]           {bduration_ub}
 \u2022imports: {inters_lb}
  [GW]     {inters_ub}
-\u2022transmission: {transmission_lb}
- [GW]          {transmission_ub}
+\u2022hvdc: {hvdc_lb}
+ [GW]  {hvdc_ub}
+\u2022hvac: {hvac_lb}
+ [GW]  {hvac_ub}
 """)
 
-lb = np.array(pv_lb + wind_lb + phes_lb + storage_lb + battery_lb + bduration_lb + inters_lb + transmission_lb)
-ub = np.array(pv_ub + wind_ub + phes_ub + storage_ub + battery_ub + bduration_ub + inters_ub + transmission_ub)
+lb = np.array(pv_lb + wind_on_lb + wind_off_lb + phes_lb + storage_lb + battery_lb + bduration_lb + inters_lb + hvdc_lb + hvac_lb)
+ub = np.array(pv_ub + wind_on_ub + wind_off_ub + phes_ub + storage_ub + battery_ub + bduration_ub + inters_ub + hvdc_ub + hvac_ub)
 
 ntrans = len(network)
+nhvdc = hvdc_mask.sum()
+nhvac = (~hvdc_mask).sum()
 ninters = CInter_mask.sum()
 
 
@@ -357,9 +372,14 @@ class Solution:
         self.node, self.nodes = node, nodes
         self.Nodel, self.PVl, self.Windl = Nodel, PVl, Windl
         
-        self.network, self.network_mask, self.DCloss = network, network_mask, DCloss
-        self.pos_export_lines = [np.where(network[:,0]==n)[0] for n in range(nodes)] # pyomo uses 1-indexing
-        self.neg_export_lines = [np.where(network[:,1]==n)[0] for n in range(nodes)] # pyomo uses 1-indexing
+        self.network, self.network_mask = network, network_mask
+        self.HVDCloss, self.HVACloss = HVDCloss, HVACloss
+
+        self.pos_hvdc_lines = [np.where(network[hvdc_mask,0]==n)[0] for n in range(nodes)] 
+        self.neg_hvdc_lines = [np.where(network[hvdc_mask,1]==n)[0] for n in range(nodes)]
+        
+        self.pos_hvac_lines = [np.where(network[~hvdc_mask,0]==n)[0] for n in range(nodes)] 
+        self.neg_hvac_lines = [np.where(network[~hvdc_mask,1]==n)[0] for n in range(nodes)] 
 
         self.firstyear, self.years = firstyear, years
         self.finalyear = self.firstyear+self.years-1
@@ -368,18 +388,23 @@ class Solution:
 
         self.efficiency, self.StartCharge = efficiency, StartCharge
         
-        self.cpv    = np.array([model.cpv[i].value    for i in model.cpv])#/1000
-        self.cwind  = np.array([model.cwind[i].value  for i in model.cwind])#/1000
-        self.cphp   = np.array([model.cphp[i].value   for i in model.cphp])#/1000
-        self.cphe   = np.array([model.cphe[i].value   for i in model.cphe])#/1000
-        self.cbp    = np.array([model.cbp[i].value    for i in model.cbp])#/1000
-        self.cbe    = np.array([model.cbe[i].value    for i in model.cbe])#/1000
-        # self.cinter = np.array([model.cinter[i].value for i in model.cinter])/1000
-        self.ctrans = np.array([model.ctrans[i].value for i in model.ctrans])#/1000
-        self.chydro = CHydro 
-        self.cbio = CBio 
-        self.cwaste = CWaste 
-
+        self.cpv      = np.array([model.cpv[i].value        for i in model.cpv])#/1000
+        self.conshore = np.array([model.conshore[i].value   for i in model.conshore])#/1000
+        self.coffshore= np.array([model.coffshore[i].value  for i in model.coffshore])#/1000
+        self.cphp     = np.array([model.cphp[i].value       for i in model.cphp])#/1000
+        self.cphe     = np.array([model.cphe[i].value       for i in model.cphe])#/1000
+        self.cbp      = np.array([model.cbp[i].value        for i in model.cbp])#/1000
+        self.cbe      = np.array([model.cbe[i].value        for i in model.cbe])#/1000
+        self.cinter   = np.array([model.cinter[i].value     for i in model.cinter])#/1000
+        self.chvdc    = np.array([model.chvdc[i].value      for i in model.chvdc])#/1000
+        self.chvac    = np.array([model.chvac[i].value      for i in model.chvac])#/1000
+        self.chydro   = CHydro 
+        self.cbio     = CBio 
+        self.cwaste   = CWaste 
+        self.cwind = np.zeros(len(Windl))
+        self.cwind[~offshore_mask], self.cwind[offshore_mask] = self.conshore, self.coffshore
+        self.ctrans = np.zeros(ntrans)
+        self.ctrans[hvdc_mask], self.ctrans[~hvdc_mask] = self.chvdc, self.chvac
         
         # operations in MW and MWh
         self.Dischargeph = np.array([model.dischargeph[i].value for i in model.dischargeph]).reshape(-1, nodes) * 1000
@@ -389,59 +414,38 @@ class Solution:
         self.Dischargeb  = np.array([model.dischargeb[i].value for i in model.dischargeb]).reshape(-1, nodes) * 1000
         self.Chargeb     = np.array([model.chargeb[i].value    for i in model.chargeb   ]).reshape(-1, nodes) * 1000
         self.Storageb    = np.array([model.storageb[i].value   for i in model.storageb  ]).reshape(-1, nodes) * 1000
-
-        # # clip Charge and Discharge to remove simultaneous charging and discharging        
-        # self.Chargeph, self.Dischargeph = np.maximum(0, self.Chargeph-self.Dischargeph), np.maximum(0, self.Dischargeph-self.Chargeph)
-        # for t in range(1, intervals):
-        #     # recalculate storage level based on clipped charging/discharging
-        #     self.Storageph[t] = np.maximum(
-        #         0, # storage should not be negative
-        #         np.minimum(
-        #             self.cphe, # storage should not exceed capacity
-        #             self.Storageph[t-1] - self.Dischargeph[t-1] * self.resolution + self.Chargeph[t-1] * self.resolution * self.efficiency
-        #             )
-        #         )
-        #     # recalculate charge/discharge to match storage level changes (not exceeding (0, cphe))
-        #     self.Chargeph[t-1]    = np.minimum(self.Chargeph[t-1]   , np.maximum(0, (self.Storageph[t] - self.Storageph[t-1])/self.resolution/self.efficiency))
-        #     self.Dischargeph[t-1] = np.minimum(self.Dischargeph[t-1], np.maximum(0, (self.Storageph[t-1] - self.Storageph[t])/self.resolution))
-        
-        # # clip Charge and Discharge to remove simultaneous charging and discharging        
-        # self.Chargeb, self.Dischargeb = np.maximum(0, self.Chargeb-self.Dischargeb), np.maximum(0, self.Dischargeb-self.Chargeb)
-        # for t in range(1, intervals):
-        #     # recalculate storage level based on clipped charging/discharging
-        #     self.Storageb[t] = np.maximum(
-        #         0, # storage should not be negative
-        #         np.minimum(
-        #             self.cbe, # storage should not exceed capacity
-        #             self.Storageb[t-1] - self.Dischargeb[t-1] * self.resolution + self.Chargeb[t-1] * self.resolution * self.efficiency
-        #             )
-        #         )
-        #     # recalculate charge/discharge to match storage level changes (not exceeding (0, cphe))
-        #     self.Chargeb[t-1]    = np.minimum(self.Chargeb[t-1]   , np.maximum(0, (self.Storageb[t] - self.Storageb[t-1])/self.resolution/self.efficiency))
-        #     self.Dischargeb[t-1] = np.minimum(self.Dischargeb[t-1], np.maximum(0, (self.Storageb[t-1] - self.Storageb[t])/self.resolution))
-
         
         self.Hydro   = np.array([model.hydro[i].value     for i in model.hydro     ]).reshape(-1, nodes) * 1000
         self.Bio     = np.array([model.bio[i].value       for i in model.bio       ]).reshape(-1, nodes) * 1000
         self.Waste   = np.array([model.waste[i].value     for i in model.waste     ]).reshape(-1, nodes) * 1000
-        # self.Imports = np.array([model.imports[i].value   for i in model.imports   ]).reshape(-1, nodes) 
+        self.Imports = np.zeros((intervals, nodes))
+        self.Imports[:, CInter_mask] = np.array([model.imports[i].value for i in model.imports]).reshape(-1, ninters) * 1000
         # self.Deficit = np.array([model.deficit[i].value   for i in model.deficit   ]).reshape(-1, nodes) 
         
-        Trans_pos =    np.array([model.trans_pos[i].value for i in model.trans_pos ]).reshape(-1, ntrans) * 1000
-        Trans_neg =    np.array([model.trans_neg[i].value for i in model.trans_neg ]).reshape(-1, ntrans) * 1000
-        self.Trans = Trans_pos - Trans_neg
+        hvdc_pos =    np.array([model.hvdc_pos[i].value for i in model.hvdc_pos ]).reshape(-1, nhvdc) * 1000
+        hvdc_neg =    np.array([model.hvdc_neg[i].value for i in model.hvdc_neg ]).reshape(-1, nhvdc) * 1000
+        self.hvdc = hvdc_pos - hvdc_neg
+
+        hvac_pos =    np.array([model.hvac_pos[i].value for i in model.hvac_pos ]).reshape(-1, nhvac) * 1000
+        hvac_neg =    np.array([model.hvac_neg[i].value for i in model.hvac_neg ]).reshape(-1, nhvac) * 1000
+        self.hvac = hvac_pos - hvac_neg
 
         self.Transmission = np.empty_like(self.Chargeph)
         for t in range(self.Chargeph.shape[0]):
             for n in range(self.Chargeph.shape[1]):
                 self.Transmission[t, n]= (
-                    + sum((Trans_pos[t, l] - Trans_neg[t, l]*(1-self.DCloss[l]) for l in self.pos_export_lines[n]))
-                    + sum((Trans_neg[t, l] - Trans_pos[t, l]*(1-self.DCloss[l]) for l in self.neg_export_lines[n]))
+                    + sum((hvdc_pos[t, l] - hvdc_neg[t, l]*(1-self.HVDCloss[l]) for l in self.pos_hvdc_lines[n]))
+                    + sum((hvdc_neg[t, l] - hvdc_pos[t, l]*(1-self.HVDCloss[l]) for l in self.neg_hvdc_lines[n]))
+                    + sum((hvac_pos[t, l] - hvac_neg[t, l]*(1-self.HVACloss[l]) for l in self.pos_hvac_lines[n]))
+                    + sum((hvac_neg[t, l] - hvac_pos[t, l]*(1-self.HVACloss[l]) for l in self.neg_hvac_lines[n]))
                 )
                 
-        self.Transmission 
+                
+        self.Wind = np.zeros((intervals, len(Windl)))
+        self.Wind[:, ~offshore_mask] = self.conshore*TSWind[:self.intervals, ~offshore_mask]*1000  
+        self.Wind[:, offshore_mask] = self.coffshore*TSWind[:self.intervals, offshore_mask]*1000  
+        
         self.PV   = self.cpv*TSPV[:self.intervals, :]*1000
-        self.Wind = self.cwind*TSWind[:self.intervals, :]*1000
         self.PV   = np.stack([self.PV[  :, np.where(self.PVl  ==node)[0]].sum(axis=1) for node in self.Nodel]).T
         self.Wind = np.stack([self.Wind[:, np.where(self.Windl==node)[0]].sum(axis=1) for node in self.Nodel]).T
         self.Load = MLoad * 1000
@@ -463,7 +467,7 @@ class Solution:
             - self.Waste 
             - self.PV 
             - self.Wind 
-            # - (self.Imports if self.Imports.size>0 else 0)
+            - self.Imports
             )
         
         self.OBJ = pyo.value(model.OBJ)

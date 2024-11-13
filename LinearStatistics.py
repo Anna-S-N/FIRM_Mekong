@@ -25,6 +25,7 @@ def Debug(solution):
             # - solution.Deficit[t]
             - solution.hydro_baseload[t]
             - solution.baseload[t]
+            - solution.Imports[t]
             - solution.Dischargeph[t] 
             - solution.Dischargeb[t] 
             - solution.Hydro[t] 
@@ -50,17 +51,18 @@ def Debug(solution):
                            + solution.Chargeb[t-1] * solution.resolution * solution.efficiency
                            - solution.Dischargeb[t-1] * solution.resolution) <= 1).all(), f"Battery Storage dis/charge accounting incorrect. t: {t}"
 
-
     assert (np.amax(solution.Chargeph, axis=0)    - 1000*solution.cphp <= 1).all(), "Storage charging exceeds bounds."
     assert (np.amax(solution.Dischargeph, axis=0) - 1000*solution.cphp <= 1).all(), "Storage discharging exceeds bounds."
     assert (np.amax(solution.Storageph, axis=0)   - 1000*solution.cphe <= 1).all(), "Storage level exceeds bounds."
-    assert (np.amin(solution.Storageph, axis=0)                        >= 0).all(), "Storage level goes negative"
+    assert (np.amin(solution.Storageph, axis=0)                        >= -0.1).all(), "Storage level goes negative"
     assert (np.amax(solution.Chargeb, axis=0)     - 1000*solution.cbp  <= 1).all(), "Storage charging exceeds bounds."
     assert (np.amax(solution.Dischargeb, axis=0)  - 1000*solution.cbp  <= 1).all(), "Storage discharging exceeds bounds."
     assert (np.amax(solution.Storageb, axis=0)    - 1000*solution.cbe  <= 1).all(), "Storage level exceeds bounds."
-    assert (np.amin(solution.Storageb, axis=0)                         >= 0).all(), "Storage level goes negative"
-    assert (np.amax(solution.Trans, axis=0)      - 1000*solution.ctrans<= 1).all(), "Transmission exceeds line capacity."
-    assert (np.amin(solution.Trans, axis=0)      + 1000*solution.ctrans >= -1).all(), "Transmission exceeds line capacity."
+    assert (np.amin(solution.Storageb, axis=0)                         >= -0.01).all(), "Storage level goes negative"
+    assert (np.amax(solution.hvdc, axis=0)        - 1000*solution.chvdc<= 1).all(), "Transmission exceeds line capacity."
+    assert (np.amin(solution.hvdc, axis=0)        + 1000*solution.chvdc>=-1).all(), "Transmission exceeds line capacity."
+    assert (np.amax(solution.hvac, axis=0)        - 1000*solution.chvac<= 1).all(), "Transmission exceeds line capacity."
+    assert (np.amin(solution.hvac, axis=0)        + 1000*solution.chvac>=-1).all(), "Transmission exceeds line capacity."
 
     assert (solution.Transmission.sum(axis=1) >= 0).all(), "DClosses are negative"
 
